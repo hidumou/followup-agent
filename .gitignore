@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.mastra/
+.env
+.env.*
+!.env.example
+data/
+logs/
+out/
+coverage/
+.DS_Store
+*.tsbuildinfo

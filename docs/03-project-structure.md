@@ -7,7 +7,7 @@ followup-agent/
 ├─ config/
 │  └─ app.config.ts            选择 adapter 档位与 playbook 的配置入口
 ├─ playbooks/
-│  ├─ demo/                    演示业务 A：playbook.md、labels.yaml、report-template.md
+│  ├─ demo/                    演示业务 A：playbook.md、playbook.json、report-template.md
 │  ├─ demo-alt/                演示业务 B（用于证明换业务只改配置）
 │  └─ default/                 你的真实业务，初始为空模板
 ├─ fixtures/                   mock 用户、mock 回复（全部为虚构数据）
@@ -33,6 +33,7 @@ followup-agent/
 │  │  ├─ workflows/            daily-followup、reply-ingest、daily-digest
 │  │  └─ scorers/              评估打分
 │  ├─ cli/                     job:daily、job:weekly、approve、eval
+│  ├─ ui/                      React 管理工作台
 │  └─ runtime/                 env.ts（zod 校验环境变量）、container.ts（装配）
 ├─ test/                       单元与集成测试
 ├─ .env.example  .gitignore  package.json  tsconfig.json
@@ -61,3 +62,5 @@ followup-agent/
 - `core/` 内禁止 import `adapters/` 或第三方平台 SDK。
 - 所有环境变量只在 `runtime/env.ts` 读取并校验，其余代码通过依赖注入使用。
 - `data/`、`logs/`、`out/`、`.env` 加入 `.gitignore`。
+
+M0 实际目录以仓库为准；尚未实现的适配器和 M3/M4 命令不预建空壳。`dev:ui` 启动本地工作台，`dev` 保留 Studio。

@@ -1,0 +1,45 @@
+{
+  "id": "demo-alt",
+  "name": "山径 · 学习工具",
+  "description": "面向暂停学习的虚构用户，验证业务配置可替换。",
+  "goal": "理解学习中断的阻碍，为学习体验收集建议。",
+  "allowedFeatures": [
+    "inactiveDays",
+    "sessions",
+    "completedActions"
+  ],
+  "labels": [
+    {
+      "id": "first-lesson",
+      "name": "尚未开始",
+      "subject": "第一节课是否容易开始？",
+      "body": "你好，我们想了解第一次进入学习工具的体验。找到适合自己的课程、开始第一节课的过程中，有没有让你犹豫或困惑的地方？如果方便，欢迎回复一个具体的感受。\n\n如果不希望再收到回访，请回复“退订”。",
+      "feature": "completedActions",
+      "lessThan": 1
+    },
+    {
+      "id": "practice",
+      "name": "练习受阻",
+      "subject": "学习过程中遇到了什么困难？",
+      "body": "你好，最近我们在收集学习体验的建议。练习内容、节奏或操作方式，有没有哪个地方不符合你的期待？欢迎回复最想改善的一点，帮助我们把课程做得更清楚。\n\n如果不希望再收到回访，请回复“退订”。",
+      "feature": "sessions",
+      "lessThan": 10
+    },
+    {
+      "id": "routine",
+      "name": "节奏中断",
+      "subject": "想听听你的学习安排",
+      "body": "你好，感谢之前的学习体验。我们想了解暂时中断学习的原因：是时间安排变化，还是内容和目标不太匹配？如果愿意，欢迎分享你的想法，我们会认真参考。\n\n如果不希望再收到回访，请回复“退订”。"
+    }
+  ],
+  "rules": {
+    "minLength": 50,
+    "maxLength": 800,
+    "requiredText": "请回复“退订”",
+    "forbiddenPhrases": [
+      "保证",
+      "永久免费",
+      "退款承诺"
+    ]
+  }
+}

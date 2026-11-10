@@ -1,0 +1,50 @@
+[
+  {
+    "userId": "usr_000000000001",
+    "features": {
+      "inactiveDays": 14,
+      "sessions": 2,
+      "completedActions": 0
+    }
+  },
+  {
+    "userId": "usr_000000000002",
+    "features": {
+      "inactiveDays": 21,
+      "sessions": 8,
+      "completedActions": 3
+    }
+  },
+  {
+    "userId": "usr_000000000003",
+    "features": {
+      "inactiveDays": 9,
+      "sessions": 16,
+      "completedActions": 10
+    }
+  },
+  {
+    "userId": "usr_000000000004",
+    "features": {
+      "inactiveDays": 30,
+      "sessions": 1,
+      "completedActions": 0
+    }
+  },
+  {
+    "userId": "usr_000000000005",
+    "features": {
+      "inactiveDays": 18,
+      "sessions": 6,
+      "completedActions": 2
+    }
+  },
+  {
+    "userId": "usr_000000000006",
+    "features": {
+      "inactiveDays": 12,
+      "sessions": 24,
+      "completedActions": 18
+    }
+  }
+]

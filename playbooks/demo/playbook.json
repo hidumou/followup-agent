@@ -1,0 +1,45 @@
+{
+  "id": "demo",
+  "name": "轻舟 · 创作工具",
+  "description": "面向停止使用创作工具的虚构用户，理解使用障碍。",
+  "goal": "了解停止使用的原因，收集产品反馈。",
+  "allowedFeatures": [
+    "inactiveDays",
+    "sessions",
+    "completedActions"
+  ],
+  "labels": [
+    {
+      "id": "onboarding",
+      "name": "入门受阻",
+      "subject": "想听听你的首次使用体验",
+      "body": "你好，最近整理使用反馈时，我们想了解第一次尝试的体验。开始创作时，有没有哪个步骤让你觉得不够清楚？如果方便，回复一句遇到的问题就好，我们会认真阅读。\n\n如果不希望再收到回访，请回复“退订”。",
+      "feature": "completedActions",
+      "lessThan": 1
+    },
+    {
+      "id": "activation",
+      "name": "价值待验证",
+      "subject": "什么能让创作更顺手？",
+      "body": "你好，我们正在改进创作流程，想听听你的想法。之前体验后，有没有一个需求没有得到满足，或一处操作不够顺手？如果愿意，欢迎直接回复你最希望改善的地方。\n\n如果不希望再收到回访，请回复“退订”。",
+      "feature": "sessions",
+      "lessThan": 10
+    },
+    {
+      "id": "retention",
+      "name": "习惯中断",
+      "subject": "想了解你最近的创作节奏",
+      "body": "你好，感谢之前的体验。最近我们在了解大家的创作习惯：你暂时没有继续使用，是需求发生变化，还是遇到了不便？任何简短的反馈都能帮助我们改进。\n\n如果不希望再收到回访，请回复“退订”。"
+    }
+  ],
+  "rules": {
+    "minLength": 50,
+    "maxLength": 800,
+    "requiredText": "请回复“退订”",
+    "forbiddenPhrases": [
+      "保证",
+      "永久免费",
+      "退款承诺"
+    ]
+  }
+}

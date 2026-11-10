@@ -89,7 +89,7 @@ export function App() {
 
   return <div className="app-shell">
     <aside className="sidebar">
-      <a className="brand" aria-label="回响工作台" href="#" onClick={event => { event.preventDefault(); setView('overview'); }}><span className="brand-symbol">↗</span><div>回响<span>FOLLOWUP AGENT</span></div></a>
+      <a className="brand" aria-label="回访工作台" href="#" onClick={event => { event.preventDefault(); setView('overview'); }}><span className="brand-symbol">↗</span><div>回访<span>FOLLOWUP AGENT</span></div></a>
       <div className="workspace"><span className="workspace-avatar">回</span><div>我的工作空间<small>本地 · 单人工作台</small></div><span className="workspace-dots">···</span></div>
       <p className="nav-label">工作空间</p>
       <nav aria-label="主导航">{navigation.map(([key, label, icon]) => <button key={key} aria-label={label} title={label} className={view === key ? 'nav-item selected' : 'nav-item'} onClick={() => setView(key)}><Icon name={icon}/><span>{label}</span>{key === 'drafts' && pending > 0 && <b>{pending}</b>}</button>)}</nav>
@@ -128,7 +128,7 @@ export function App() {
         </>}
         {view === 'history' && <section className="panel history-panel"><div className="panel-heading"><h2>全部运行 <span className="count">{runs.length}</span></h2><span className="muted small">最近 100 次 · 自动更新</span></div>{runs.length ? <div className="table-scroll"><table><thead><tr><th>任务 / 业务手册</th><th>状态</th><th>草稿进度</th><th>模拟调用</th><th>开始时间</th><th/></tr></thead><tbody>{runs.map(item => <tr key={item.id}><td><strong>{item.playbook.name}</strong><small className="mono">#{item.id.slice(0, 8)} · 第 {item.attempt} 次尝试</small></td><td><Badge status={item.status}/></td><td>{item.processed} / {item.userIds?.length ?? '—'}</td><td>{item.usage.modelCalls}</td><td>{time(item.createdAt)}</td><td><button className="text-button" onClick={() => chooseRun(item.id)}>详情 <Icon name="arrow" size={14}/></button></td></tr>)}</tbody></table></div> : <Empty title="每次运行，都会留下记录">发起首次回访，开始积累对用户的理解。</Empty>}</section>}
         {view === 'playbooks' && <div className="playbook-grid">{config?.playbooks.map((playbook, index) => <section className="panel playbook-card" key={playbook.id}><div className="playbook-top"><span className="book-number">0{index + 1}</span><span className="label-chip">演示业务</span></div><Icon name="book" size={32}/><h2>{playbook.name}</h2><p>{playbook.description}</p><h3>回访目标</h3><p>{playbook.goal}</p><h3>场景标签</h3><div className="label-row">{playbook.labels.map(label => <span className="label-chip" key={label.id}>{label.name}</span>)}</div><div className="playbook-rules">正文 {playbook.rules.minLength}–{playbook.rules.maxLength} 字 · 包含退订说明<br/>禁止：{playbook.rules.forbiddenPhrases.join('、')}</div></section>)}</div>}
-        <footer>回响 Followup Agent <span>每一条反馈，都是下一次改进的起点。</span><span>本机运行 · 虚构数据</span></footer>
+        <footer>回访 Followup Agent <span>每一条反馈，都是下一次改进的起点。</span><span>本机运行 · 虚构数据</span></footer>
       </main>
     </div>
     {showStart && config && <StartDialog config={config} busy={busy} error={error} onClose={() => setShowStart(false)} onStart={(playbook, maxUsers) => void action(async () => { const result = await api<{ run: RunRecord }>('/runs', { playbook, maxUsers }); setDetail({ run: result.run, drafts: [], events: [], edits: [] }); setRuns(previous => [result.run, ...previous]); setSelectedId(result.run.id); setSelectedDraftId(undefined); setView('overview'); setShowStart(false); })}/>}

@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "回响本地工作台 API",
+    "title": "回访本地工作台 API",
     "version": "0.1.0",
     "description": "仅本机，全部数据为 mock。写请求必须是同源 JSON，无真实发送能力。"
   },

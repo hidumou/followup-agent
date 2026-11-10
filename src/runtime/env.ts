@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { existsSync } from 'node:fs';
 
 const schema = z.object({
   ADAPTER_PROFILE: z.literal('mock').default('mock'),
@@ -15,7 +16,16 @@ export interface AppConfig {
   root: string; dbUrl: string; workflowDbUrl: string; outputDirectory: string;
   playbook: string; port: number; limits: { maxUsers: number; maxCalls: number; dailyTokens: number };
 }
-export function readEnv(root = process.cwd(), source: Record<string, string | undefined> = process.env): AppConfig {
+export function resolveProjectRoot(start = process.cwd()): string {
+  let directory = resolve(start);
+  while (true) {
+    if (existsSync(join(directory, 'package.json')) && existsSync(join(directory, 'db/migrations/001_initial.sql'))) return directory;
+    const parent = dirname(directory);
+    if (parent === directory) throw new Error('Followup project root not found');
+    directory = parent;
+  }
+}
+export function readEnv(root = resolveProjectRoot(), source: Record<string, string | undefined> = process.env): AppConfig {
   const parsed = schema.safeParse(source);
   if (!parsed.success) throw new Error(`Invalid environment: ${parsed.error.issues.map(issue => issue.path.join('.')).join(', ')}`);
   const env = parsed.data;

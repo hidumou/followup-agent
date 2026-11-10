@@ -30,7 +30,7 @@ export async function createContainer(config: AppConfig = readEnv()) {
   const workflowStorage = new LibSQLStore({ id: 'followup-workflows', url: config.workflowDbUrl });
   await workflowStorage.init();
   const workflow = createDailyFollowup(engine);
-  const mastra = new Mastra({ workflows: { dailyFollowup: workflow }, storage: workflowStorage, logger: false });
+  const mastra = new Mastra({ workflows: { dailyFollowup: workflow }, storage: workflowStorage, logger: false, server: { host: '127.0.0.1' } });
   const tasks = new Map<string, Promise<void>>();
   const alive = (pid: number | null) => {
     if (pid === null) return false;

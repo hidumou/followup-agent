@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { anonymousContext, redact } from '../src/core/privacy/index.ts';
 import { assertBudget, checkDraft } from '../src/core/guards/index.ts';
 import { loadPlaybooks } from '../src/runtime/playbooks.ts';
-import { readEnv } from '../src/runtime/env.ts';
+import { readEnv, resolveProjectRoot } from '../src/runtime/env.ts';
 
 const playbook = (await loadPlaybooks(new URL('../playbooks', import.meta.url).pathname))[0];
 
@@ -23,6 +23,10 @@ describe('privacy boundary', () => {
 });
 
 describe('deterministic guards', () => {
+  it('resolves the project when Mastra Studio changes the working directory', () => {
+    const root = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
+    expect(resolveProjectRoot(`${root}/src/mastra/public`)).toBe(root);
+  });
   const draft = { subject: playbook.labels[0].subject, body: playbook.labels[0].body };
   it('accepts the playbook template and rejects privacy leaks and forbidden promises', () => {
     expect(checkDraft(draft, playbook)).toEqual([]);

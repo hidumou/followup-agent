@@ -922,6 +922,21 @@
               "requiredText",
               "forbiddenPhrases"
             ]
+          },
+          "ai": {
+            "type": "object",
+            "properties": {
+              "classifyInstructions": {
+                "type": "string"
+              },
+              "draftInstructions": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "classifyInstructions",
+              "draftInstructions"
+            ]
           }
         },
         "required": [
@@ -1025,6 +1040,15 @@
           },
           "cancelRequested": {
             "type": "boolean"
+          },
+          "model": {
+            "$ref": "#/components/schemas/ModelInfo"
+          },
+          "calls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelCall"
+            }
           }
         },
         "required": [
@@ -1281,7 +1305,11 @@
             "const": "dry-run"
           },
           "model": {
-            "const": "stub"
+            "$ref": "#/components/schemas/ModelInfo"
+          },
+          "budgetUsd": {
+            "type": "number",
+            "minimum": 0
           }
         },
         "required": [
@@ -1289,7 +1317,83 @@
           "defaultPlaybook",
           "limits",
           "mode",
-          "model"
+          "model",
+          "budgetUsd"
+        ]
+      },
+      "ModelInfo": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "enum": [
+              "stub",
+              "llm"
+            ]
+          },
+          "fast": {
+            "type": "string"
+          },
+          "writer": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "fast",
+          "writer"
+        ]
+      },
+      "ModelCall": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "day": {
+            "type": "string",
+            "format": "date"
+          },
+          "model": {
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "reserved",
+              "reported",
+              "unknown"
+            ]
+          },
+          "inputTokens": {
+            "type": "number",
+            "minimum": 0
+          },
+          "outputTokens": {
+            "type": "number",
+            "minimum": 0
+          },
+          "inputUsdPerMillion": {
+            "type": "number",
+            "minimum": 0
+          },
+          "outputUsdPerMillion": {
+            "type": "number",
+            "minimum": 0
+          },
+          "costUsd": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id",
+          "day",
+          "model",
+          "state",
+          "inputTokens",
+          "outputTokens",
+          "inputUsdPerMillion",
+          "outputUsdPerMillion",
+          "costUsd"
         ]
       }
     }

@@ -5,7 +5,7 @@
 ## 自动验证
 
 - `pnpm typecheck`：通过。
-- `ppnpm test`：3 个测试文件、17 项测试通过。
+- `pnpm test`：3 个测试文件、17 项测试通过。
 - `pnpm build`：生产 UI 构建通过。
 - `pnpm dev`：Mastra Studio 成功启动，HTTP 200；适配启动器切换工作目录的行为。
 - `pnpm approve`：通过交互终端验证编辑后批准与退出，UI 同步显示批准结果。

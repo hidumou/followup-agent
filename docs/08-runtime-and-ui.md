@@ -49,7 +49,7 @@ stateDiagram-v2
 - 等待审批不是进程中断，重启后原队列保持可用。启动仅对 owner PID 已不存活的 queued/running 记录标记 interrupted，不触发自动重试。
 - 手工重试沿用业务运行 ID、增加 attempt、创建新的 Mastra run；保留原事件和审批，跳过已生成草稿，模拟凭据按草稿 ID 幂等写入。不会重新联系已被其他运行占用的用户。
 - 调用次数跨重试累计；修改环境变量并重启后，重试使用当前上限。降低上限导致已选用户超限时拒绝重试。
-- 停止为协作式：正在等待的调用返回后，在下一个检查点停止；不会回滚已经生成的草稿或已完成的模拟发送。真实外部调用的取消与超时在 M1 实现。
+- 停止为协作式：正在等待的调用返回后，在下一个检查点停止；不会回滚已经生成的草稿或已完成的模拟发送。M1 的模型调用支持 AbortSignal 与超时；中止不保证供应商未计费，未知用量保留预留。
 - 单机 PID 检查是 M0 的进程存活机制，不提供跨机器租约；机器迁移和进程身份复用的增强留入 backlog。
 
 ## 并发与持久化
@@ -67,7 +67,7 @@ stateDiagram-v2
 | 运行记录 | 最近运行状态、尝试次数、用量、进入详情 |
 | 业务手册 | 两套示例业务的目标、分类、话术护栏 |
 
-页面始终标记 dry-run/mock；窄屏收缩为图标导航，保留可访问名称。表单有标签，创建使用原生 dialog，支持键盘关闭与焦点约束；审批中禁用重复操作，后端仍独立做版本校验。
+页面始终标记 dry-run，并区分虚构用户来源和真实 AI / stub 模型；窄屏收缩为图标导航，保留可访问名称。表单有标签，创建使用原生 dialog，支持键盘关闭与焦点约束；审批中禁用重复操作，后端仍独立做版本校验。
 
 ## HTTP 约定
 
@@ -76,3 +76,7 @@ stateDiagram-v2
 ## 官方 API 参考
 
 实现时核对了 Mastra 当前官方文档：[Workflow](https://mastra.ai/docs/workflows/overview)、[Step](https://mastra.ai/reference/workflows/step)、[Resume](https://mastra.ai/reference/workflows/run-methods/resume)、[libSQL](https://mastra.ai/integrations/databases/libsql)。实际依赖版本锁定在 `pnpm-lock.yaml`。
+
+## M1 模型运行补充
+
+真实 AI 接入采用独立 MODEL_MODE。运行保存模型配置快照与逐次调用预算，用量面板显示真实调用、已确认输入/输出 token、估算费用及未确认预留。旧 M0 历史按 stub 展示；更换模型后不允许重试旧模型任务。细节见 `10-ai-integration.md`。

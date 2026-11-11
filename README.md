@@ -33,6 +33,7 @@ UI 操作：发起回访 → 选择 demo 或 demo-alt → 查看运行现场 →
 | `pnpm approve` | CLI 审批、编辑、拒绝，审批完继续模拟发送 |
 | `pnpm db:migrate` | 初始化业务库与 Mastra 工作流存储 |
 | `pnpm typecheck && pnpm test` | 类型检查、隐私/护栏/流程/API 测试 |
+| `pnpm test:ai` | 真实 AI 核心验收，需本机密钥；虚构用户、独立测试库、dry-run、费用最多 $1 |
 
 `job:weekly`、`job:catchup`、`eval` 在后续里程碑实现，当前没有伪实现。启动时识别中断记录，不自动补跑。
 

@@ -1,0 +1,4 @@
+[
+  { "playbook": "demo", "expectedLabels": ["onboarding", "activation", "retention"] },
+  { "playbook": "demo-alt", "expectedLabels": ["first-lesson", "practice", "routine"] }
+]

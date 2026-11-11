@@ -4,6 +4,7 @@ export const statuses: Record<string, string> = {
 };
 export const steps: Record<string, string> = { discover: '发现用户', context: '匿名上下文', classify: '场景分类', draft: '撰写草稿', guard: '护栏检查', review: '人工审批', send: '模拟发送', done: '完成' };
 export const messages: Record<string, string> = {
+  SCHEDULE_TRIGGERED: '工作日计划已自动发起本次回访', SCHEDULE_VERSION_CONFLICT: '计划已被其他操作更新，请刷新后重试。',
   RUN_CREATED: '回访任务已创建', RUN_STARTED: '开始执行工作流', STEP_STARTED: '开始步骤', STUB_CALL: '已计入一次模拟模型调用', USERS_SELECTED: '已筛选待回访用户',
   DRAFT_SAVED: '草稿通过护栏并保存', WAITING_APPROVAL: '工作流已暂停，等待人工审批', DRAFT_APPROVED: '草稿已批准', DRAFT_REJECTED: '草稿已拒绝', REVIEW_COMPLETED: '全部草稿已处理，继续工作流',
   SEND_SIMULATED: '模拟发送凭据已保存', RUN_COMPLETED: '本次回访已完成', CANCEL_REQUESTED: '已请求停止运行', RUN_CANCELLED: '运行已取消', RETRY_REQUESTED: '已提交人工重试', PROCESS_INTERRUPTED: '上次进程已退出，运行被标记为中断',

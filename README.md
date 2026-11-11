@@ -16,6 +16,8 @@ pnpm dev:ui
 
 打开终端打印的本地地址，默认 `http://127.0.0.1:4180`。只监听本机；端口被占用时会报错，不自动换端口。`pnpm dev` 保留为 Mastra Studio 开发服务（默认 4111）。
 
+UI 的「自动回访」页可查看工作日 09:00（Asia/Taipei）的计划、下一次时间、后台检查、触发记录并暂停/开启计划。macOS 首次执行 `pnpm schedule:install`，即可在关闭网页和 UI 服务后继续触发。漏过计划全部跳过；已有活动任务（含待审批）时也跳过。详见 [定时运行](docs/05-deployment-and-cost.md)。
+
 UI 操作：发起回访 → 选择 demo 或 demo-alt → 查看运行现场 → 草稿审批 → 编辑、批准或拒绝 → 全部草稿处理后自动模拟发送。任务、草稿、事件、人工编辑都来自本地持久化记录。
 
 ## 真实 AI
@@ -29,6 +31,10 @@ UI 操作：发起回访 → 选择 demo 或 demo-alt → 查看运行现场 →
 | `pnpm dev:ui` | UI 与本地 HTTP 服务，开发模式 |
 | `pnpm build && pnpm start` | 构建 UI 并提供本地静态页面与 API |
 | `pnpm dev` | Mastra Studio，查看已注册的 daily-followup |
+| `pnpm schedule:install` | 安装并开启当前项目/数据库的 macOS 后台定时任务 |
+| `pnpm schedule:status` | 查看计划与后台任务状态 |
+| `pnpm schedule:uninstall` | 暂停计划并卸载后台任务 |
+| `pnpm schedule:tick` | 检查计划；仅当前到点的计划可发起，不强制运行 |
 | `pnpm job:daily` | 使用当前 PLAYBOOK 生成草稿，暂停等待审批 |
 | `pnpm approve` | CLI 审批、编辑、拒绝，审批完继续模拟发送 |
 | `pnpm db:migrate` | 初始化业务库与 Mastra 工作流存储 |
@@ -36,11 +42,11 @@ UI 操作：发起回访 → 选择 demo 或 demo-alt → 查看运行现场 →
 | `pnpm test:ai:tools` | 真实只读工具调用与结果消费验证，共享累计费用预算 |
 | `pnpm test:ai` | 真实 AI 核心验收，需本机密钥；虚构用户、独立测试库、dry-run、费用最多 $1 |
 
-`job:weekly`、`job:catchup`、`eval` 在后续里程碑实现，当前没有伪实现。启动时识别中断记录，不自动补跑。
+`job:weekly`、`eval` 在后续里程碑实现。按用户确认的策略不提供 `job:catchup`；启动识别中断记录，漏跑只记录跳过，不自动补跑。
 
 ## 数据与输出
 
-- `data/followup.db`：业务运行、草稿、事件、人工编辑；`data/followup.db.workflow.db`：Mastra 暂停快照。两库均不包含外键。
+- `data/followup.db`：业务运行、草稿、事件、人工编辑、计划和触发记录；`data/followup.db.workflow.db`：Mastra 暂停快照。两库均不包含外键。
 - `out/drafts/<draftId>.json`：生成的草稿快照；工作流完成时更新为最终状态。运行期间以 SQLite / UI 中的数据为准。
 - `out/simulated/<draftId>.json`：模拟发送凭据，不包含邮箱或收件人；重复执行同一草稿写入同一文件。
 - `.env`、`data/`、`out/`、`logs/` 均被 Git 忽略。所有示例用户都是虚构的 opaque ID。

@@ -59,7 +59,7 @@ flowchart TB
 | 外部 | 用户数据平台、Resend、模型 API、SQLite 文件 | 第三方 | 是 |
 
 ## 日常数据流（每日一次）
-1. cron 触发 `job:daily`。
+1. launchd / cron 调用 `schedule:tick`，检查工作日 09:00（Asia/Taipei）计划；当前分钟内原子创建 daily-followup 运行，错过则记录跳过，不补跑。`job:daily` 保留为人工立即发起。
 2. `reply-ingest`：从 Mailer 拉取新回复 → `redact()` → 抽取结构化 insight → 写入 RecordStore。
 3. `daily-followup`：UserSource 取流失名单 → 排除已联系 → 截断到 `MAX_USERS_PER_RUN` → 逐用户：构建匿名上下文 → 分类 → 写草稿 → 护栏检查 → 存为 `pending_approval` → 暂停等待审批。
 4. 人通过 `pnpm approve` 审批（可编辑）；恢复后 `SendService` 取联系方式并经 Mailer 发送（受 `SEND_MODE` 约束）。

@@ -786,6 +786,172 @@
           }
         }
       }
+    },
+    "/api/schedule": {
+      "get": {
+        "operationId": "getSchedule",
+        "summary": "读取计划、最近 100 次触发及后台状态",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleSnapshot"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "输入错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host 或 Origin 不允许",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "计划版本冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "必须使用 JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "setScheduleEnabled",
+        "summary": "暂停或开启未来计划；不强制运行，不取消当前任务",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "version": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "required": [
+                  "enabled",
+                  "version"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schedule": {
+                      "$ref": "#/components/schemas/Schedule"
+                    }
+                  },
+                  "required": [
+                    "schedule"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "输入错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host 或 Origin 不允许",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "计划版本冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "必须使用 JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务异常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1049,6 +1215,47 @@
             "items": {
               "$ref": "#/components/schemas/ModelCall"
             }
+          },
+          "trigger": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "manual"
+                    ]
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "scheduled"
+                    ]
+                  },
+                  "scheduleId": {
+                    "type": "string"
+                  },
+                  "plannedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "scheduleId",
+                  "plannedAt"
+                ]
+              }
+            ]
           }
         },
         "required": [
@@ -1394,6 +1601,163 @@
           "inputUsdPerMillion",
           "outputUsdPerMillion",
           "costUsd"
+        ]
+      },
+      "Schedule": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "weekday-followup"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "timezone": {
+            "type": "string",
+            "enum": [
+              "Asia/Taipei"
+            ]
+          },
+          "weekdays": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "const": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ]
+          },
+          "hour": {
+            "const": 9
+          },
+          "minute": {
+            "const": 0
+          },
+          "missedPolicy": {
+            "type": "string",
+            "enum": [
+              "skip"
+            ]
+          },
+          "nextRunAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "lastTickAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "enabled",
+          "version",
+          "timezone",
+          "weekdays",
+          "hour",
+          "minute",
+          "missedPolicy",
+          "nextRunAt",
+          "lastTickAt"
+        ]
+      },
+      "ScheduleOccurrence": {
+        "type": "object",
+        "properties": {
+          "plannedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "observedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "started",
+              "skipped",
+              "failed"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "MISSED_WINDOW",
+              "RUN_ALREADY_ACTIVE",
+              "TRIGGER_FAILED"
+            ]
+          },
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "plannedAt",
+          "observedAt",
+          "outcome"
+        ]
+      },
+      "RunnerStatus": {
+        "type": "object",
+        "properties": {
+          "supported": {
+            "type": "boolean"
+          },
+          "installed": {
+            "type": "boolean"
+          },
+          "loaded": {
+            "type": "boolean"
+          },
+          "lastExitCode": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "supported",
+          "installed",
+          "loaded"
+        ]
+      },
+      "ScheduleSnapshot": {
+        "type": "object",
+        "properties": {
+          "schedule": {
+            "$ref": "#/components/schemas/Schedule"
+          },
+          "occurrences": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScheduleOccurrence"
+            }
+          },
+          "runner": {
+            "$ref": "#/components/schemas/RunnerStatus"
+          }
+        },
+        "required": [
+          "schedule",
+          "occurrences",
+          "runner"
         ]
       }
     }

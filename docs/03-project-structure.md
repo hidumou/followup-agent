@@ -40,7 +40,7 @@ followup-agent/
 ```
 
 ## package.json 脚本
-`dev`、`job:daily`、`job:weekly`、`job:catchup`、`approve`、`eval`、`typecheck`、`test`、`db:migrate`
+`dev`、`job:daily`、`job:weekly`、`schedule:install`、`schedule:status`、`schedule:uninstall`、`schedule:tick`、`approve`、`eval`、`typecheck`、`test`、`db:migrate`
 
 ## 环境变量（`.env.example` 必须包含，值为空或示例）
 

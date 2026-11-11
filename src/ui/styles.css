@@ -1592,3 +1592,29 @@ tbody tr:last-child td {
     animation:none!important;
   }
 }
+
+.schedule-banner { display:flex; align-items:center; gap:14px; width:100%; margin-bottom:22px; padding:18px 22px; border:1px solid #d4e4da; border-radius:12px; background:#edf4ef; text-align:left; color:var(--green); }
+.schedule-banner div { flex:1; }
+.schedule-banner small { display:block; margin-top:6px; color:#657b6d; line-height:1.5; }
+.schedule-banner>span { font-size:12px; }
+.schedule-layout { display:grid; grid-template-columns:1.3fr 1fr; gap:22px; }
+.schedule-plan,.schedule-flow { padding:24px; }
+.schedule-plan>.panel-heading { padding:0; }
+.schedule-time { display:flex; align-items:center; gap:20px; margin:30px 0; }
+.schedule-time>strong { font-size:48px; font-weight:500; letter-spacing:-2px; }
+.schedule-time small { display:block; color:var(--muted); margin-top:8px; }
+.schedule-time button { margin-left:auto; }
+.schedule-facts { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin:0 0 24px; }
+.schedule-facts dt { color:var(--muted); font-size:12px; margin-bottom:8px; }
+.schedule-facts dd { margin:0; line-height:1.6; }
+.schedule-plan>.small { line-height:1.9; }
+.schedule-warning { background:#fbf5e8; border:1px solid #efe4cc; border-radius:8px; padding:14px; margin-bottom:18px; font-size:12px; line-height:1.9; }
+.schedule-warning button { margin-left:10px; }
+.schedule-flow ol { list-style:none; padding:0; margin:26px 0 0; }
+.schedule-flow li { display:flex; gap:14px; padding-bottom:25px; }
+.schedule-flow li:last-child { padding-bottom:0; }
+.schedule-flow li>b { display:grid; place-items:center; width:27px; height:27px; border-radius:50%; flex-shrink:0; background:#eaf2ec; color:var(--green); font-size:12px; }
+.schedule-flow li p { margin-top:7px; color:#819089; font-size:12px; line-height:1.8; }
+.schedule-history { grid-column:1 / -1; }
+@media(max-width:1100px) { .schedule-layout { grid-template-columns:1fr; } }
+@media(max-width:600px) { .schedule-time { flex-wrap:wrap; gap:12px; } .schedule-time>strong { font-size:40px; } .schedule-time button { margin-left:0; } .schedule-facts { grid-template-columns:1fr; gap:18px; } .schedule-banner>span { display:none; } }

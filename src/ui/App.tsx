@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Draft, Limits, ModelInfo, Playbook, RunDetail, RunRecord } from '../core/domain/index.ts';
 import { messages, statuses, steps, time } from './copy.ts';
+import { SchedulePanel, scheduleHealth } from './SchedulePanel.tsx';
+import type { ScheduleData } from './SchedulePanel.tsx';
 
-type View = 'overview' | 'drafts' | 'history' | 'playbooks';
+type View = 'overview' | 'drafts' | 'history' | 'playbooks' | 'schedule';
 interface Config { playbooks: Playbook[]; defaultPlaybook: string; limits: Limits; model: ModelInfo; budgetUsd: number }
-const navigation: [View, string, string][] = [['overview', '工作台', 'grid'], ['drafts', '草稿审批', 'mail'], ['history', '运行记录', 'clock'], ['playbooks', '业务手册', 'book']];
+const navigation: [View, string, string][] = [['overview', '工作台', 'grid'], ['schedule', '自动回访', 'clock'], ['drafts', '草稿审批', 'mail'], ['history', '运行记录', 'clock'], ['playbooks', '业务手册', 'book']];
 const flow = ['discover', 'context', 'classify', 'draft', 'guard', 'review', 'send'];
 
 async function api<T>(path: string, input?: unknown): Promise<T> {
@@ -36,6 +38,7 @@ function Empty({ title, children }: { title: string; children: ReactNode }) { re
 export function App() {
   const [view, setView] = useState<View>('overview');
   const [config, setConfig] = useState<Config>();
+  const [schedule, setSchedule] = useState<ScheduleData>();
   const [runs, setRuns] = useState<RunRecord[]>([]);
   const [selectedId, setSelectedId] = useState<string>();
   const [detail, setDetail] = useState<RunDetail>();
@@ -56,6 +59,9 @@ export function App() {
         const { runs: latest } = await api<{ runs: RunRecord[] }>('/runs');
         if (stale) return;
         setRuns(latest);
+        const latestSchedule = await api<ScheduleData>('/schedule');
+        if (stale) return;
+        setSchedule(latestSchedule);
         const id = selectedId ?? latest.find(run => ['queued', 'running', 'waiting_approval'].includes(run.status))?.id ?? latest[0]?.id;
         if (id) {
           const value = await api<RunDetail>(`/runs/${id}`);
@@ -101,10 +107,11 @@ export function App() {
     <div className="main-shell">
       <header className="topbar"><div><span className="muted">工作空间</span><span className="breadcrumb">/</span>{navigation.find(item => item[0] === view)?.[1]}</div><div className="topbar-right"><span className="environment"><i/>DRY RUN</span><span className="avatar">H</span></div></header>
       <main>
-        <div className="page-heading"><div><p className="eyebrow">LISTEN. LEARN. RECONNECT.</p><h1>{view === 'overview' ? '让每一次回访，有迹可循。' : navigation.find(item => item[0] === view)?.[1]}</h1><p>{view === 'overview' ? '从发现用户到草稿审批，掌握 Agent 的每一步。' : view === 'drafts' ? '审阅措辞，保留你的判断。全部处理后统一模拟发送。' : view === 'history' ? '回看执行过程、人工决策和每次运行的结果。' : '用独立的业务配置，定义回访目标、分类和话术。'}</p></div><button className="button primary" disabled={!config || busy || !!active} onClick={() => setShowStart(true)}><Icon name="play" size={16}/>发起回访</button></div>
+        <div className="page-heading"><div><p className="eyebrow">LISTEN. LEARN. RECONNECT.</p><h1>{view === 'overview' ? '让每一次回访，有迹可循。' : navigation.find(item => item[0] === view)?.[1]}</h1><p>{view === 'overview' ? '从发现用户到草稿审批，掌握 Agent 的每一步。' : view === 'drafts' ? '审阅措辞，保留你的判断。全部处理后统一模拟发送。' : view === 'schedule' ? '按时开始，逐步执行，重要的决定仍交给你。' : view === 'history' ? '回看执行过程、人工决策和每次运行的结果。' : '用独立的业务配置，定义回访目标、分类和话术。'}</p></div><button className="button primary" disabled={!config || busy || !!active} onClick={() => setShowStart(true)}><Icon name="play" size={16}/>发起回访</button></div>
         {(error || connectionError) && <div className="alert" role="alert">{error || messages.NETWORK_ERROR}<button aria-label="重新加载" onClick={() => { setError(''); void refreshRef.current(); if (!config) void api<Config>('/config').then(setConfig).catch(() => {}); }}><Icon name="refresh" size={16}/></button></div>}
         {active && run?.id !== active.id && <button className="active-notice" onClick={() => chooseRun(active.id)}>有一项{statuses[active.status]}的回访任务，点击查看 <Icon name="arrow" size={16}/></button>}
         {view === 'overview' && <>
+          {schedule && <button className="schedule-banner" onClick={() => setView('schedule')}><Icon name="clock"/><div><strong>每个工作日 09:00 自动回访</strong><small>Asia/Taipei · {scheduleHealth(schedule, runs)}{schedule.schedule.nextRunAt ? ` · 下次 ${time(schedule.schedule.nextRunAt)}` : ''}</small></div><span>查看计划</span><Icon name="arrow" size={16}/></button>}
           <div className="stats-grid">{[
             ['本次回访用户', String(run?.userIds?.length ?? 0), 'users', run ? `${run.skipped} 位已去重或未选入本批次` : '等待发起首次回访'],
             ['待人工审批', String(pending), 'mail', pending ? '你的判断，让回访更有温度' : '当前没有待审批草稿'],
@@ -113,7 +120,7 @@ export function App() {
           ].map(([label, value, icon, note]) => <section className="stat" key={label}><div><span>{label}</span><span className="stat-icon"><Icon name={icon} size={18}/></span></div><strong>{value}{label === '模型调用' && <small> / {run?.limits.maxCalls ?? config?.limits.maxCalls ?? '—'}</small>}</strong><p>{note}</p></section>)}</div>
           <div className="workspace-grid"><section className="panel execution-panel"><div className="panel-heading"><div><span className="section-kicker">AGENT RUNTIME</span><h2>运行现场 {run && <Badge status={run.status}/>}</h2></div>{run && <span className="mono small">#{run.id.slice(0, 8)}</span>}</div>
             {loading ? <Empty title="正在读取工作台">连接本地运行记录…</Empty> : !run ? <Empty title="准备好，开始第一次倾听">选择一个业务手册，Agent 会自动筛选虚构用户并生成待审批草稿。<br/><button className="text-button" onClick={() => setShowStart(true)} disabled={!config}>创建首次回访 <Icon name="arrow" size={16}/></button></Empty> : <>
-              <div className="run-summary"><div><strong>{run.playbook.name}</strong><span>{time(run.createdAt)} · 第 {run.attempt} 次尝试</span></div><div className="run-actions">{['failed', 'cancelled', 'interrupted'].includes(run.status) && <button className="button small-button" disabled={busy} onClick={() => void action(async () => { await api(`/runs/${run.id}/retry`, {}); })}><Icon name="refresh" size={15}/>人工重试</button>}{['queued', 'running', 'waiting_approval'].includes(run.status) && <button className="button small-button" disabled={busy || run.cancelRequested} onClick={() => void action(async () => { await api(`/runs/${run.id}/cancel`, {}); })}><Icon name="stop" size={14}/>{run.cancelRequested ? '停止中' : '停止运行'}</button>}</div></div>
+              <div className="run-summary"><div><strong>{run.playbook.name}</strong><span>{run.trigger?.kind === 'scheduled' ? '定时发起' : '手动发起'} · {time(run.createdAt)} · 第 {run.attempt} 次尝试</span></div><div className="run-actions">{['failed', 'cancelled', 'interrupted'].includes(run.status) && <button className="button small-button" disabled={busy} onClick={() => void action(async () => { await api(`/runs/${run.id}/retry`, {}); })}><Icon name="refresh" size={15}/>人工重试</button>}{['queued', 'running', 'waiting_approval'].includes(run.status) && <button className="button small-button" disabled={busy || run.cancelRequested} onClick={() => void action(async () => { await api(`/runs/${run.id}/cancel`, {}); })}><Icon name="stop" size={14}/>{run.cancelRequested ? '停止中' : '停止运行'}</button>}</div></div>
               <div className="flow-track">{flow.map((step, index) => {
                 const current = run.step === step;
                 const done = run.status === 'completed' || flow.indexOf(run.step) > index;
@@ -129,7 +136,8 @@ export function App() {
           <div className="toolbar"><div className="filter-tabs">{[['all', '全部草稿'], ['pending_approval', '待审批'], ['simulated', '已模拟发送']].map(([key, label]) => <button key={key} className={draftFilter === key ? 'chosen' : ''} onClick={() => setDraftFilter(key)}>{label}</button>)}</div><select aria-label="选择回访任务" value={selectedId ?? ''} onChange={event => { setDetail(undefined); setLoading(true); setSelectedId(event.target.value); setSelectedDraftId(undefined); }}><option value="" disabled>选择回访任务</option>{runs.map(item => <option key={item.id} value={item.id}>{time(item.createdAt)} · {item.playbook.name} · {statuses[item.status]}</option>)}</select></div>
           {drafts.length ? <div className="review-layout"><section className="panel draft-list">{drafts.filter(item => draftFilter === 'all' || item.status === draftFilter).map(draft => <button key={draft.id} className={`draft-choice ${currentDraft?.id === draft.id ? 'chosen' : ''}`} onClick={() => setSelectedDraftId(draft.id)}><div><span className="small mono">{draft.userId}</span><Badge status={draft.status}/></div><strong>{draft.subject}</strong><p>{draft.body.slice(0, 55)}…</p><span className="label-chip">{draft.labelName}</span></button>)}{!drafts.some(item => draftFilter === 'all' || item.status === draftFilter) && <div className="compact-empty">该分类下暂无草稿。</div>}</section>{currentDraft && <DraftEditor draft={currentDraft} detail={detail!} busy={busy} onReview={(decision, subject, body) => void action(async () => { await api(`/runs/${currentDraft.runId}/drafts/${currentDraft.id}/review`, { version: currentDraft.version, decision, subject, body }); })}/>}</div> : <section className="panel"><Empty title="还没有回访草稿">发起一次回访后，你可以在这里审阅和编辑草稿。</Empty></section>}
         </>}
-        {view === 'history' && <section className="panel history-panel"><div className="panel-heading"><h2>全部运行 <span className="count">{runs.length}</span></h2><span className="muted small">最近 100 次 · 自动更新</span></div>{runs.length ? <div className="table-scroll"><table><thead><tr><th>任务 / 业务手册</th><th>状态</th><th>草稿进度</th><th>模型调用 / 真实 AI</th><th>开始时间</th><th/></tr></thead><tbody>{runs.map(item => <tr key={item.id}><td><strong>{item.playbook.name}</strong><small className="mono">#{item.id.slice(0, 8)} · 第 {item.attempt} 次尝试</small></td><td><Badge status={item.status}/></td><td>{item.processed} / {item.userIds?.length ?? '—'}</td><td>{item.usage.modelCalls} / {item.usage.llmCalls}</td><td>{time(item.createdAt)}</td><td><button className="text-button" onClick={() => chooseRun(item.id)}>详情 <Icon name="arrow" size={14}/></button></td></tr>)}</tbody></table></div> : <Empty title="每次运行，都会留下记录">发起首次回访，开始积累对用户的理解。</Empty>}</section>}
+        {view === 'history' && <section className="panel history-panel"><div className="panel-heading"><h2>全部运行 <span className="count">{runs.length}</span></h2><span className="muted small">最近 100 次 · 自动更新</span></div>{runs.length ? <div className="table-scroll"><table><thead><tr><th>任务 / 业务手册</th><th>状态</th><th>草稿进度</th><th>模型调用 / 真实 AI</th><th>开始时间</th><th/></tr></thead><tbody>{runs.map(item => <tr key={item.id}><td><strong>{item.playbook.name}</strong><small className="mono">#{item.id.slice(0, 8)} · {item.trigger?.kind === 'scheduled' ? '定时发起' : '手动发起'} · 第 {item.attempt} 次尝试</small></td><td><Badge status={item.status}/></td><td>{item.processed} / {item.userIds?.length ?? '—'}</td><td>{item.usage.modelCalls} / {item.usage.llmCalls}</td><td>{time(item.createdAt)}</td><td><button className="text-button" onClick={() => chooseRun(item.id)}>详情 <Icon name="arrow" size={14}/></button></td></tr>)}</tbody></table></div> : <Empty title="每次运行，都会留下记录">发起首次回访，开始积累对用户的理解。</Empty>}</section>}
+        {view === 'schedule' && schedule && config && <SchedulePanel data={schedule} runs={runs} playbook={config.playbooks.find(book => book.id === config.defaultPlaybook)?.name ?? config.defaultPlaybook} maxUsers={config.limits.maxUsers} busy={busy} onRun={chooseRun} onToggle={() => void action(async () => { await api('/schedule', { enabled: !schedule.schedule.enabled, version: schedule.schedule.version }); })}/>}
         {view === 'playbooks' && <div className="playbook-grid">{config?.playbooks.map((playbook, index) => <section className="panel playbook-card" key={playbook.id}><div className="playbook-top"><span className="book-number">0{index + 1}</span><span className="label-chip">演示业务</span></div><Icon name="book" size={32}/><h2>{playbook.name}</h2><p>{playbook.description}</p><h3>回访目标</h3><p>{playbook.goal}</p><h3>场景标签</h3><div className="label-row">{playbook.labels.map(label => <span className="label-chip" key={label.id}>{label.name}</span>)}</div><div className="playbook-rules">正文 {playbook.rules.minLength}–{playbook.rules.maxLength} 字 · 包含退订说明<br/>禁止：{playbook.rules.forbiddenPhrases.join('、')}</div></section>)}</div>}
         <footer>回访 Followup Agent <span>每一条反馈，都是下一次改进的起点。</span><span>本机运行 · 虚构数据</span></footer>
       </main>

@@ -4,7 +4,7 @@
 
 用户明确允许流失用户继续 mock，并委托选择性价比合适的模型。本轮完成 M1 的模型接入部分：匿名用户 → AI 分类 → AI 草稿 → 护栏 → 人工审批 → 模拟发送。默认仍可离线使用 stub；M2 真实发信、M3 回复抽取、M4 汇总与周报没有提前实现。
 
-代码接入与离线验证完成不代表 M1 整体验收：真实模型质量、账户访问权限和工具调用稳定性仍需联调。用户 API 继续使用 mock，不猜测真实字段或认证方式。
+2026-11-11 已完成真实模型小批量验收：六个虚构场景、两套业务手册、只读工具调用与两步结果消费均通过。详细证据见 `11-real-ai-validation.md`。用户 API 继续使用 mock，M2–M4 尚未完成；小样本通过不代表所有业务场景都稳定。
 
 ## 模型选择
 
@@ -74,7 +74,7 @@ CLI 1.75.0 不支持 `postman status`，未检索远端官方 mock，也未上�
 
 框架依据：[Agent.generate](https://mastra.ai/reference/agents/generate)、[结构化输出](https://mastra.ai/docs/agents/structured-output)；协议依据：[Responses](https://developers.openai.com/api/reference/resources/responses/methods/create)、[错误码](https://developers.openai.com/api/docs/guides/error-codes)。
 
-下一步真实验证需要本机新密钥和明确费用上限。先用少量虚构用户检查分类正确性、中文话术、JSON schema 与护栏通过情况，再决定是否扩大样本；工具调用另需真实验证，不因文档声称支持就视为已通过。
+真实模型和工具调用的本轮验证结果见 `11-real-ai-validation.md`。后续需要真实业务手册与更多边界样本，再评估扩大使用。
 
 ## 真实核心验收命令
 
@@ -87,3 +87,5 @@ pnpm test:ai
 测试库为 `data/ai-validation.db`，跨重复测试保留累计预算；每批使用新的虚构 opaque ID，不删除旧记录。生成内容、状态、用量及估算费用保存在 `out/ai-validation/<批次>/report.json`，终端只输出状态摘要。自动检查通过后仍须阅读实际草稿，评价中文表达、事实与业务贴合度；不把接口成功视为质量验收。
 
 2026-11-11 本轮执行记录：类型检查和 29 项离线测试通过；`pnpm test:ai` 在配置检查阶段退出，本机 `OPENAI_API_KEY` 尚为空，真实模型调用为 0。真实效果与工具调用结论仍待验证，不能据此宣布真实 AI 核心已可用。
+
+补充命令：`pnpm test:ai:tools` 验证模型选择只读工具、传参、执行与消费返回结果，最多两次模型调用，与核心验收共用累计费用账本。已完成一次真实验证，详见 `11-real-ai-validation.md`。上方“缺密钥”的记录为首次尝试，后续用户授权配置后已通过真实验收。

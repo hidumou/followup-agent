@@ -10,11 +10,11 @@ assumptions:
     source: scripts/check-model-simulation.ts; postman/mocks/openai-rate-limit/default.js; test/real-model.test.ts
     updated_at: "2026-11-11"
   - id: provider-model-quality-and-access
-    status: unknown
-    claim: 当前账户可调用 gpt-6-luna，且中文分类与回访话术满足本项目要求。
-    reason: 尚未进行付费实测；本地替身不生成真实模型结果。
-    verification: 已核对 OpenAI 模型与结构化输出文档；新密钥的本机配置与真实联调预算仍待确认。工具调用稳定性也尚未实测。
-    source: https://developers.openai.com/api/docs/models/gpt-6-luna; docs/10-ai-integration.md
+    status: supported
+    claim: 本轮账户可调用 gpt-6-luna；六个虚构场景的分类、草稿和一次只读工具探针通过。
+    reason: 在本地替身验证之后，真实 OpenAI 调用完成了 12 次核心请求和 2 次工具探针请求；只支持本轮小样本结论。
+    verification: 2026-11-11 执行 pnpm test:ai 和 pnpm test:ai:tools；分类 6/6，草稿 6/6，工具执行一次并正确消费结果。原先的未验证状态已由真实调用补充，不代表长期稳定性。
+    source: https://developers.openai.com/api/docs/models/gpt-6-luna; docs/11-real-ai-validation.md
     updated_at: "2026-11-11"
   - id: mock-provenance
     status: supported

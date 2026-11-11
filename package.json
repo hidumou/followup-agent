@@ -17,7 +17,8 @@
     "db:migrate": "node --env-file-if-exists=.env src/cli/migrate.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:ai": "node --env-file-if-exists=.env src/cli/test-ai.ts"
+    "test:ai": "node --env-file-if-exists=.env src/cli/test-ai.ts",
+    "test:ai:tools": "node --env-file-if-exists=.env src/cli/test-ai-tools.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.18.0",

@@ -22,7 +22,7 @@ pnpm schedule:uninstall # 暂停计划并卸载后台任务
 
 安装器使用绝对 Node 可执行路径和项目工作目录，不依赖终端的 nvm / pnpm PATH。plist 位于 `~/Library/LaunchAgents/local.followup-agent.schedule.<hash>.plist`；日志在 `logs/schedule.log` 和 `logs/schedule-error.log`，只输出运行 ID、状态或稳定错误码。Node 升级导致原可执行文件删除后，应先卸载再重新安装。
 
-**移动、合并或清理当前 worktree 前，必须先在原目录执行 `pnpm schedule:uninstall`。** `.env`、数据和日志不跟随 Git 合并；在目标目录明确保留所需数据与配置后重新安装，避免留下指向已删除目录的后台任务。UI 显示「后台未连接」「最近检查异常」「检查延迟」时，先检查 `schedule:status` 与日志，不把计划开启等同于后台正常。
+本项目后续在本地主目录使用普通 Git 分支开发，不再新建 worktree。**迁移项目目录或清理旧 worktree 前，必须先在原目录执行 `pnpm schedule:uninstall`。** `.env`、数据和日志不跟随 Git 合并；停止旧服务、完整迁移业务库和工作流库并校验后，在目标目录重新安装定时任务，避免留下指向已删除目录的后台任务。UI 显示「后台未连接」「最近检查异常」「检查延迟」时，先检查 `schedule:status` 与日志，不把计划开启等同于后台正常。
 
 Linux 可由用户 cron 每分钟调用 `schedule:tick`，时区由程序处理，不依赖 cron 的宿主时区；当前仅验证 macOS 自动安装，未自动修改 Linux crontab。例如（替换实际绝对路径并保证日志目录存在）：
 

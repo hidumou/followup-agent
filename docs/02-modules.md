@@ -71,5 +71,21 @@ interface Notifier {
 
 ## 评估与可观测
 - 在线：每次人工审批记录「草稿 vs 最终版」差异与是否被拒；记录结论被推翻的情况。
-- 离线：`pnpm eval` 对 fixtures 运行 scorers（MVP 最少 2 个：护栏通过率、抽取结果结构有效率）。
+- 离线：`npm run eval` 对 fixtures 运行 scorers（MVP 最少 2 个：护栏通过率、抽取结果结构有效率）。
 - 追踪：使用 Mastra 的追踪与 Studio；每次运行记录模型调用次数与 token 用量。
+
+## 新增模块（控制台与 playbook 演进）
+
+| 模块 | 位置 | 职责 | 里程碑 |
+|---|---|---|---|
+| services | `src/core/services` | ApprovalService、ReviewService、ReportService、PlaybookService、ProposalService；CLI 与控制台共用，所有写操作写审计日志 | M0 起逐步建立（先读后写） |
+| versioning | `src/core/evolution/versioning` | playbook 版本快照、手动修改检测、回滚 | M1 |
+| signals | `src/core/evolution/signals` | 采集编辑差异、拒绝原因、insight 修正、报告反馈 | M2 到 M4 |
+| proposal 校验 | `src/core/evolution/proposal` | 范围与大小校验、去重、冲突标注 | M6 |
+| regression | `src/core/evolution/regression` | 用候选版本跑 dry-run 并生成对比报告 | M6 |
+| playbook-proposer | `src/mastra/agents/playbook-proposer.ts` | 离线 agent，只读信号，通过 `submitProposal` 工具提交建议 | M6 |
+| playbook-proposal workflow | `src/mastra/workflows/playbook-proposal.ts` | 取数、归因、生成、校验、回归、入库 | M6 |
+| console | `src/console` | 本机网页控制台（server 与 web），只调用 services，遵循 `12` 的设计规范 | M0 起逐步建设，M5 验收 |
+
+## 新增领域对象
+`RejectReason`（`TONE`、`FACT_ERROR`、`FORBIDDEN`、`TOO_LONG`、`NOT_FIT_USER`、`OTHER`）、`HumanEdit`、`InsightOverride`、`ReportFeedback`、`PlaybookVersion`、`PlaybookProposal`、`ProposalEvidence`、`RegressionReport`、`AuditLogEntry`、`Run`。字段在实现时按 `08`、`11` 的描述确定。

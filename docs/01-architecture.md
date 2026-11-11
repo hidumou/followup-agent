@@ -12,7 +12,8 @@
 ```mermaid
 flowchart TB
   CRON["定时任务<br/>本机 cron / launchd"] --> RT
-  HUMAN["决策者 / 你<br/>审批、抽查、读报告"] <--> RT
+  HUMAN["决策者 / 你<br/>审批、抽查、读报告"] <--> UI["网页控制台 / CLI"]
+  UI <--> RT
 
   subgraph RT["Mastra 运行时 (TypeScript)"]
     direction TB
@@ -21,6 +22,7 @@ flowchart TB
       W2["reply-ingest workflow"]
       W3["daily-digest workflow"]
       W4["weekly-report agent"]
+      W5["playbook-proposer agent<br/>离线，M6"]
     end
     subgraph CAP["框架能力"]
       C1["审批暂停 / 恢复"]
@@ -59,10 +61,10 @@ flowchart TB
 | 外部 | 用户数据平台、Resend、模型 API、SQLite 文件 | 第三方 | 是 |
 
 ## 日常数据流（每日一次）
-1. launchd / cron 调用 `schedule:tick`，检查工作日 09:00（Asia/Taipei）计划；当前分钟内原子创建 daily-followup 运行，错过则记录跳过，不补跑。`job:daily` 保留为人工立即发起。
+1. cron 触发 `job:daily`。
 2. `reply-ingest`：从 Mailer 拉取新回复 → `redact()` → 抽取结构化 insight → 写入 RecordStore。
 3. `daily-followup`：UserSource 取流失名单 → 排除已联系 → 截断到 `MAX_USERS_PER_RUN` → 逐用户：构建匿名上下文 → 分类 → 写草稿 → 护栏检查 → 存为 `pending_approval` → 暂停等待审批。
-4. 人通过 `pnpm approve` 审批（可编辑）；恢复后 `SendService` 取联系方式并经 Mailer 发送（受 `SEND_MODE` 约束）。
+4. 人通过 `npm run approve` 审批（可编辑）；恢复后 `SendService` 取联系方式并经 Mailer 发送（受 `SEND_MODE` 约束）。
 5. `daily-digest`：用代码聚合当日记录，生成日汇总，经 Notifier 发给决策者。
 
 ## 周报数据流（每周一次）
@@ -80,3 +82,16 @@ flowchart TB
 - 审批用 workflow 的暂停与恢复：这是框架的核心能力，也是学习重点。
 - 回复接收用轮询：本机没有公网地址，无法收 webhook；定时拉取足够。
 - 存储用 SQLite（libSQL）：零运维，Mastra 存储和业务记录可共用。
+
+## 产品形态：CLI 与控制台
+- 所有人工操作（审批、复核、阅读报告、审阅 playbook 建议、回滚）封装在 `core/services` 中。
+- 网页控制台是主要入口，CLI 保留为定时任务入口与备用；两者调用同一套 service。UI 层不得包含业务逻辑。
+- 模块划分见 `09`，界面线框见 `10`，交互见 `11`，视觉规范见 `12`。
+
+## Playbook 演进数据流（M6）
+1. 日常运行持续沉淀信号：审批编辑差异、拒绝原因码、被修正的 insight、报告反馈、低置信度或「其他」类回复。
+2. 周报之后自动触发，或手动 `playbook:propose`；信号数量达到阈值才运行。
+3. playbook-proposer agent 只读信号，归纳有足够证据的模式，通过受限工具提交 proposal（diff、理由、证据）。
+4. 回归 runner 用候选版本在样本上 dry-run，与当前版本对比。
+5. 你审阅：采纳、修改后采纳、拒绝、搁置。采纳才生成新版本，之后的运行使用新版本，并持续对比前后指标。
+6. 提议 agent 不能直接写入 `playbooks/`，不能修改禁区、护栏与报告结构。详见 `08`。

@@ -1,72 +1,38 @@
-# 回访 · 用户回访 Agent
+# followup-agent：用户回访与总结 Agent（MVP 规格包）
 
-本地用户回访工作台。使用 Mastra 编排、SQLite 持久化、React + Vite UI，把虚构用户名单转成可人工编辑、批准或拒绝的草稿，再执行模拟发送。支持离线 stub 或通过 OpenAI 生成真实 AI 草稿。
+这是一份交给 Claude Code / Codex 的实现规格。目标是用现有 agent 框架（Mastra + TypeScript）搭出一个「流失用户回访 → 收集回复 → 结构化总结 → 汇报给决策者」的最小可用闭环，并以此学习和验证 agent 框架。
 
-**当前进度：M0 已完成；M1 的真实 AI 核心已通过小批量实测。** 用户来源保持 mock，邮件只模拟发送。六个场景、两套手册及只读工具调用验证通过；M2–M4 未完成，真实用户平台仍未接入。详见 [真实 AI 验收](docs/11-real-ai-validation.md)。
+## 文档索引
 
-## 本地启动
+| 文件 | 内容 | 谁需要读 |
+|---|---|---|
+| `AGENTS.md` / `CLAUDE.md` | 给编码 agent 的工作规则与硬性约束 | 编码 agent（必读） |
+| `docs/01-architecture.md` | 架构图、分层、数据流、隐私边界 | 所有人 |
+| `docs/02-modules.md` | 模块划分、端口接口、workflow 步骤、状态机 | 实现者 |
+| `docs/03-project-structure.md` | 目录结构、脚本、环境变量 | 实现者 |
+| `docs/04-tech-stack.md` | 技术选型、理由、不用什么 | 实现者 |
+| `docs/05-deployment-and-cost.md` | 运行部署方案（本机 → Cloudflare）与成本估算 | 你 |
+| `docs/06-materials-checklist.md` | 需要你提供的资料清单与降级方案 | 你 |
+| `docs/07-mvp-scope.md` | MVP 边界、里程碑、验收标准 | 所有人 |
+| `docs/08-playbook-evolution.md` | Playbook 演进：AI 提议、人审批的业务规划 | 所有人 |
+| `docs/09-product-modules.md` | 平台业务模块划分、角色、对象与读写矩阵 | 实现者 |
+| `docs/10-prototype-wireframes.md` | 原型图文字稿（各界面布局与状态） | 实现者 |
+| `docs/11-core-interactions.md` | 核心交互流程、状态变化、异常与验收点 | 实现者 |
+| `docs/12-ui-design-spec.md` | 界面布局、风格、主题色、组件与可访问性规范 | 实现者（控制台） |
+| `docs/assets/design-tokens.css` | 设计令牌（浅色与深色主题） | 实现者（控制台） |
 
-需要 Node.js ≥ 22.18 和 pnpm 10。当前在 Node.js 26.12.1、pnpm 10.29.2 上验证。
+## 产品形态说明
 
-```sh
-pnpm install --frozen-lockfile
-cp .env.example .env
-pnpm dev:ui
-```
+产品形态是一个本机网页「控制台」，由 9 个业务模块组成（见 `docs/09`）。控制台随 M0 到 M4 逐步建设，M5 做完善与验收，这些共同构成 MVP；CLI 保留为定时任务入口与备用。Playbook 演进（AI 提议、人审批）是 M6，在 MVP 之后，需要你明确指示才开始。界面规范见 `docs/10`、`docs/11`、`docs/12`。
 
-打开终端打印的本地地址，默认 `http://127.0.0.1:4180`。只监听本机；端口被占用时会报错，不自动换端口。`pnpm dev` 保留为 Mastra Studio 开发服务（默认 4111）。
+## 如何交给编码 agent
 
-UI 的「自动回访」页可查看工作日 09:00（Asia/Taipei）的计划、下一次时间、后台检查、触发记录并暂停/开启计划。macOS 首次执行 `pnpm schedule:install`，即可在关闭网页和 UI 服务后继续触发。漏过计划全部跳过；已有活动任务（含待审批）时也跳过。详见 [定时运行](docs/05-deployment-and-cost.md)。
+1. 新建仓库，把本包内容放到仓库根目录（`docs/` 保持原样）。
+2. 先按 `docs/06-materials-checklist.md` 准备好 M0 所需资料（M0 不需要真实密钥）。
+3. 在 Claude Code 或 Codex 中打开仓库，首条指令建议：
+   「阅读 AGENTS.md 和 docs/ 下全部文档，然后只实现里程碑 M0，完成后停下来汇报，不要继续 M1。」
+4. 每完成一个里程碑，人工验收后再进入下一个（验收标准见 `docs/07-mvp-scope.md`）。
 
-UI 操作：发起回访 → 选择 demo 或 demo-alt → 查看运行现场 → 草稿审批 → 编辑、批准或拒绝 → 全部草稿处理后自动模拟发送。任务、草稿、事件、人工编辑都来自本地持久化记录。
+## 一句话原则
 
-## 真实 AI
-
-默认模型选择 GPT-6 Luna，分类与写稿均使用 `openai/gpt-6-luna`。在本机配置新 `OPENAI_API_KEY`、`MODEL_MODE=openai` 和确认的 `LLM_BUDGET_USD` 后启用；默认 stub，费用预算默认 0。用户仍为虚构数据，发信仍为 dry-run。详见 [AI 配置、预算与验证边界](docs/10-ai-integration.md)。
-
-## 命令
-
-| 命令 | 行为 |
-|---|---|
-| `pnpm dev:ui` | UI 与本地 HTTP 服务，开发模式 |
-| `pnpm build && pnpm start` | 构建 UI 并提供本地静态页面与 API |
-| `pnpm dev` | Mastra Studio，查看已注册的 daily-followup |
-| `pnpm schedule:install` | 安装并开启当前项目/数据库的 macOS 后台定时任务 |
-| `pnpm schedule:status` | 查看计划与后台任务状态 |
-| `pnpm schedule:uninstall` | 暂停计划并卸载后台任务 |
-| `pnpm schedule:tick` | 检查计划；仅当前到点的计划可发起，不强制运行 |
-| `pnpm job:daily` | 使用当前 PLAYBOOK 生成草稿，暂停等待审批 |
-| `pnpm approve` | CLI 审批、编辑、拒绝，审批完继续模拟发送 |
-| `pnpm db:migrate` | 初始化业务库与 Mastra 工作流存储 |
-| `pnpm typecheck && pnpm test` | 类型检查、隐私/护栏/流程/API 测试 |
-| `pnpm test:ai:tools` | 真实只读工具调用与结果消费验证，共享累计费用预算 |
-| `pnpm test:ai` | 真实 AI 核心验收，需本机密钥；虚构用户、独立测试库、dry-run、费用最多 $1 |
-
-`job:weekly`、`eval` 在后续里程碑实现。按用户确认的策略不提供 `job:catchup`；启动识别中断记录，漏跑只记录跳过，不自动补跑。
-
-## 数据与输出
-
-- `data/followup.db`：业务运行、草稿、事件、人工编辑、计划和触发记录；`data/followup.db.workflow.db`：Mastra 暂停快照。两库均不包含外键。
-- `out/drafts/<draftId>.json`：生成的草稿快照；工作流完成时更新为最终状态。运行期间以 SQLite / UI 中的数据为准。
-- `out/simulated/<draftId>.json`：模拟发送凭据，不包含邮箱或收件人；重复执行同一草稿写入同一文件。
-- `.env`、`data/`、`out/`、`logs/` 均被 Git 忽略。所有示例用户都是虚构的 opaque ID。
-
-默认 mock 数据有 6 位用户。相同业务手册会去重已进入其他任务的用户（拒绝也会保留），因此已完成一轮后再次运行可能为 0 人；可用另一套手册验证业务切换。取消任务释放未模拟发送的用户；失败任务保留草稿，优先人工重试原任务。
-
-## 运行与隐私约束
-
-- 本阶段 `ADAPTER_PROFILE` 只接受 `mock`，`SEND_MODE` 只接受 `dry-run`，错误配置会阻止启动。
-- 三层状态、取消、重启与重试语义见 [运行状态与 UI](docs/08-runtime-and-ui.md)。同一数据库一次只允许一个活动任务，包含等待审批的任务；CLI 与 UI 共用审批规则。
-- 模拟模型调用同样受 `MAX_LLM_CALLS_PER_RUN` 限制；UI 单列真实 LLM 调用、已确认 token 与估算费用。重试不清零累计调用数。
-- `MAX_USERS_PER_RUN` 限制选入的用户；候选读取最多 1000 条，超过本次处理上限的候选不进入模型。M1 的真实分页需另行确认。
-- 模型上下文只接受手册允许的数值/布尔特征，丢弃字符串和联系人字段；当前模拟链路从不调用 `getContact()`。
-- `redact()` 是确定性的常见邮箱、电话、URL、带标签姓名过滤器，不承诺识别任意自然语言中的人名。M3 接真实回复之前必须扩展并验证隐私边界。
-- 模型请求前持久化预算预留，收到响应后记录实际 token；用量未知时保留预留。调用、日 token 与累计费用均有上限，取消/超时不会自动重试。实际费用以供应商账单为准。
-
-## 实现索引
-
-`src/core/` 保持领域逻辑与端口，不引用 Mastra、平台 SDK 或 adapters；SQLite、文件输出、模拟用户和模型在 `src/adapters/`。Mastra 工作流在 `src/mastra/`，HTTP 服务、环境校验与依赖装配在 `src/runtime/`，界面在 `src/ui/`。
-
-分类标签、条件、话术、护栏与报告模板在 `playbooks/`；M0 使用 JSON 配置，避免为简单配置引入 YAML 解析依赖。每次运行保存所用手册快照，后续编辑配置不会改变已待审的内容。
-
-完整规格见 [docs](docs/01-architecture.md)，API 契约见 [OpenAPI](docs/api.openapi.json)，验收记录见 [M0 验证](docs/09-m0-validation.md)。
+固定流程为主，agent 只用在开放问题（周报洞察）；核心通用，平台与业务差异放在适配器和 playbook；默认 dry-run，任何真实发送都必须经过审批；playbook 的演进由 AI 提议、人审批，AI 不直接修改规则。

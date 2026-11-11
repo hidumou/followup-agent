@@ -7,7 +7,7 @@ followup-agent/
 ├─ config/
 │  └─ app.config.ts            选择 adapter 档位与 playbook 的配置入口
 ├─ playbooks/
-│  ├─ demo/                    演示业务 A：playbook.md、playbook.json、report-template.md
+│  ├─ demo/                    演示业务 A：playbook.md、labels.yaml、report-template.md
 │  ├─ demo-alt/                演示业务 B（用于证明换业务只改配置）
 │  └─ default/                 你的真实业务，初始为空模板
 ├─ fixtures/                   mock 用户、mock 回复（全部为虚构数据）
@@ -33,14 +33,13 @@ followup-agent/
 │  │  ├─ workflows/            daily-followup、reply-ingest、daily-digest
 │  │  └─ scorers/              评估打分
 │  ├─ cli/                     job:daily、job:weekly、approve、eval
-│  ├─ ui/                      React 管理工作台
 │  └─ runtime/                 env.ts（zod 校验环境变量）、container.ts（装配）
 ├─ test/                       单元与集成测试
 ├─ .env.example  .gitignore  package.json  tsconfig.json
 ```
 
 ## package.json 脚本
-`dev`、`job:daily`、`job:weekly`、`schedule:install`、`schedule:status`、`schedule:uninstall`、`schedule:tick`、`approve`、`eval`、`typecheck`、`test`、`db:migrate`
+`dev`、`job:daily`、`job:weekly`、`job:catchup`、`approve`、`eval`、`typecheck`、`test`、`db:migrate`
 
 ## 环境变量（`.env.example` 必须包含，值为空或示例）
 
@@ -63,4 +62,34 @@ followup-agent/
 - 所有环境变量只在 `runtime/env.ts` 读取并校验，其余代码通过依赖注入使用。
 - `data/`、`logs/`、`out/`、`.env` 加入 `.gitignore`。
 
-M0 实际目录以仓库为准；尚未实现的适配器和 M3/M4 命令不预建空壳。`dev:ui` 启动本地工作台，`dev` 保留 Studio。
+## 新增目录
+
+```
+docs/assets/design-tokens.css        设计令牌，控制台直接引用
+playbooks/<name>/VERSION             当前版本号
+playbooks/<name>/CHANGELOG.md        版本变更说明
+src/core/services/                   各 Service（CLI 与控制台共用）
+src/core/evolution/                  versioning、signals、proposal、regression
+src/mastra/agents/playbook-proposer.ts
+src/mastra/workflows/playbook-proposal.ts
+src/console/server/                  控制台服务端：路由调用 services，校验 Host、Origin 与会话令牌
+src/console/web/                     控制台前端：pages、components、styles（引用 design-tokens.css）
+```
+
+## 新增环境变量
+
+| 变量 | 说明 |
+|---|---|
+| `MODEL_PROPOSER` | 提议 agent 使用的模型 |
+| `PROPOSAL_MIN_SIGNALS` | 触发提议所需的最少新信号数（默认 20） |
+| `PROPOSAL_MIN_EVIDENCE` | 每条 proposal 所需的最少独立证据数（默认 3） |
+| `PROPOSAL_MAX_PER_RUN` | 每次最多生成的 proposal 数（默认 3） |
+| `PROPOSAL_MAX_DIFF_LINES` | 单条 proposal 的 diff 行数上限（默认 20） |
+| `REPORT_REVIEW_FIRST` | 报告是否先由操作者确认再发给决策者（默认 true） |
+| `DRAFT_TTL_DAYS` | 草稿过期天数（默认 7） |
+| `LOW_CONFIDENCE` | 低置信度阈值（默认 0.6） |
+| `RETRY_MAX` | 模型与外部调用的重试次数（默认 2） |
+| `CONSOLE_HOST` / `CONSOLE_PORT` | 控制台监听地址，默认 `127.0.0.1` |
+
+## 新增脚本
+`status`、`followups`、`replies`、`report`、`playbook`、`playbook:propose`、`playbook:review`、`runs`、`config:show`、`job:ingest`、`console`、`console:dev`、`console:build`

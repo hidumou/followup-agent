@@ -32,7 +32,7 @@ export class FollowupEngine {
   }
   async create(playbook: Playbook, limits: Limits): Promise<RunRecord> {
     const run = this.prepare(playbook, limits);
-    await this.deps.store.createRun(run);
+    await this.deps.store.createRun(run, { actor: 'operator', action: 'run.start' });
     await this.deps.store.mutate(run.id, detail => this.event(detail, 'RUN_CREATED'));
     return run;
   }
@@ -142,10 +142,12 @@ export class FollowupEngine {
       const existing = current.drafts.find(draft => draft.userId === userId);
       if (existing) { await files.saveDraft(existing); continue; }
       const context = anonymousContext(await users.getContext(userId), run.playbook.allowedFeatures);
+      await store.mutate(id, detail => { (detail.run.contexts ??= {})[userId] = context; });
       await this.checkpoint(id, 'classify', userId);
       const labelId = await this.invoke(id, 'classify', context, run.playbook, options => model.classify(context, run.playbook, options));
       const label = run.playbook.labels.find(item => item.id === labelId);
       if (!label) throw new AppError('INVALID_LABEL');
+      await store.mutate(id, detail => { (detail.run.classifications ??= {})[userId] = label.id; });
       await this.checkpoint(id, 'draft', userId);
       const output = await this.invoke(id, 'draft', context, run.playbook, options => model.draft(context, labelId, run.playbook, options), labelId);
       await this.checkpoint(id, 'guard', userId);
@@ -154,6 +156,7 @@ export class FollowupEngine {
         id: clock.id(), runId: id, userId, label: labelId, labelName: label.name, ...output,
         originalSubject: output.subject, originalBody: output.body, status: 'pending_approval' as const,
         version: 1, createdAt: clock.now(), updatedAt: clock.now(),
+        playbookVersion: run.playbook.version,
       };
       await store.mutate(id, detail => {
         if (detail.run.cancelRequested) throw new AppError('RUN_CANCELLED', 409);
@@ -185,7 +188,7 @@ export class FollowupEngine {
         detail.run.ownerPid = this.deps.clock.pid;
         this.event(detail, 'REVIEW_COMPLETED', 'success');
       }
-    });
+    }, { actor: 'operator', action: `draft.${input.decision}`, objectType: 'draft', objectId: draftId });
   }
   async send(id: string): Promise<void> {
     const detail = await this.checkpoint(id, 'send');
@@ -231,7 +234,7 @@ export class FollowupEngine {
       this.event(detail, detail.run.error ?? 'RUN_CANCELLED', detail.run.status === 'failed' ? 'error' : 'warning');
     });
   }
-  async cancel(id: string): Promise<RunDetail> {
+  async cancel(id: string, actor: 'operator' | 'system' = 'operator'): Promise<RunDetail> {
     const result = await this.deps.store.mutate(id, detail => {
       if (!activeStatuses.includes(detail.run.status)) throw new AppError('RUN_NOT_ACTIVE', 409);
       detail.run.cancelRequested = true;
@@ -241,7 +244,7 @@ export class FollowupEngine {
         detail.run.finishedAt = this.deps.clock.now();
       }
       this.event(detail, 'CANCEL_REQUESTED', 'warning');
-    });
+    }, { actor, action: 'run.cancel' });
     this.inFlight.get(id)?.abort(new AppError('RUN_CANCELLED'));
     return result;
   }
@@ -264,6 +267,6 @@ export class FollowupEngine {
       detail.run.workflowRunId = `${id}-${detail.run.attempt}`;
       detail.run.limits = limits;
       this.event(detail, 'RETRY_REQUESTED');
-    });
+    }, { actor: 'operator', action: 'run.retry' });
   }
 }

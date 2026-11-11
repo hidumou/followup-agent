@@ -2,6 +2,27 @@
 
 这是一份交给 Claude Code / Codex 的实现规格。目标是用现有 agent 框架（Mastra + TypeScript）搭出一个「流失用户回访 → 收集回复 → 结构化总结 → 汇报给决策者」的最小可用闭环，并以此学习和验证 agent 框架。
 
+## 当前可运行版本（新版 M0）
+
+已实现：Hono 本机服务、React/Vite 控制台、浅色/深色/系统主题、逐用户回访记录与详情、运行状态与审计、审批编辑与差异、真实 AI 接口和离线模型、工作日自动回访。用户数据为 mock，邮件仅模拟发送。M1–M6 其余功能按下方规格分期实施。
+
+```bash
+pnpm install
+test -e .env || cp .env.example .env # 保留已有配置
+pnpm console:dev
+# 浏览器打开 http://127.0.0.1:4180
+```
+
+已有本机 `.env`、数据库与 AI 测试记录保持原位。密钥只保存在本机忽略文件中。离线验证使用 `MODEL_MODE=stub`；真实 AI 需要 `MODEL_MODE=openai`、`OPENAI_API_KEY` 和大于零的 `LLM_BUDGET_USD`，发起任务会计入预算。
+
+生产构建：`pnpm console:build` 后 `pnpm console`。兼容原 `pnpm dev:ui` / `pnpm start`。检查：`pnpm typecheck && pnpm test && pnpm console:build`。
+
+- `pnpm status`：工作台概览；`pnpm followups list` / `pnpm followups show <id>`：逐用户记录。
+- `pnpm runs list|show|retry|cancel <id>`：运行与人工重试；`pnpm approve`：备用审批。
+- `pnpm schedule:install` / `pnpm schedule:status` / `pnpm schedule:uninstall`：macOS 本机调度。工作日 09:00（Asia/Taipei）；漏跑全部跳过，失败/取消/中断后人工重试。
+
+HTTP 写入使用每次服务启动重新生成的随机会话令牌，浏览器仅在内存中保存；服务重启后旧令牌会被拒绝，需要重新操作。只监听 `127.0.0.1`，不提供发送模式切换入口。运行与草稿的版本从本轮开始记录；旧数据标为“未记录”，没有伪造历史信息。
+
 ## 文档索引
 
 | 文件 | 内容 | 谁需要读 |
@@ -19,6 +40,7 @@
 | `docs/10-prototype-wireframes.md` | 原型图文字稿（各界面布局与状态） | 实现者 |
 | `docs/11-core-interactions.md` | 核心交互流程、状态变化、异常与验收点 | 实现者 |
 | `docs/12-ui-design-spec.md` | 界面布局、风格、主题色、组件与可访问性规范 | 实现者（控制台） |
+| `docs/13-m0-validation.md` | 新版 M0 实现范围、测试与浏览器验收记录 | 所有人 |
 | `docs/assets/design-tokens.css` | 设计令牌（浅色与深色主题） | 实现者（控制台） |
 
 ## 产品形态说明

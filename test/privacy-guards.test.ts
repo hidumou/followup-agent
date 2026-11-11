@@ -45,6 +45,8 @@ describe('deterministic guards', () => {
     expect(() => assertBudget(limits, usage, 2, 90, 11)).toThrow('TOKEN_LIMIT');
   });
   it('fails closed for live or real adapters and hides invalid environment values', () => {
+    expect(() => readEnv('/tmp', { CONSOLE_HOST: '0.0.0.0' })).toThrow('Invalid environment: CONSOLE_HOST');
+    expect(readEnv('/tmp', { CONSOLE_PORT: '4182', UI_PORT: '4180' }).port).toBe(4182);
     expect(() => readEnv('/tmp', { SEND_MODE: 'live' })).toThrow('Invalid environment: SEND_MODE');
     expect(() => readEnv('/tmp', { ADAPTER_PROFILE: 'real' })).toThrow('Invalid environment: ADAPTER_PROFILE');
     expect(() => readEnv('/tmp', { DB_URL: 'https://private.invalid' })).toThrow('Invalid environment: DB_URL');

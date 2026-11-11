@@ -39,7 +39,7 @@ followup-agent/
 ```
 
 ## package.json 脚本
-`dev`、`job:daily`、`job:weekly`、`job:catchup`、`approve`、`eval`、`typecheck`、`test`、`db:migrate`
+`dev`、`job:daily`、`job:weekly`、`approve`、`eval`、`typecheck`、`test`、`db:migrate`
 
 ## 环境变量（`.env.example` 必须包含，值为空或示例）
 
@@ -88,8 +88,14 @@ src/console/web/                     控制台前端：pages、components、styl
 | `REPORT_REVIEW_FIRST` | 报告是否先由操作者确认再发给决策者（默认 true） |
 | `DRAFT_TTL_DAYS` | 草稿过期天数（默认 7） |
 | `LOW_CONFIDENCE` | 低置信度阈值（默认 0.6） |
-| `RETRY_MAX` | 模型与外部调用的重试次数（默认 2） |
-| `CONSOLE_HOST` / `CONSOLE_PORT` | 控制台监听地址，默认 `127.0.0.1` |
+| 自动重试 | 按用户确认不启用；失败后人工重试，无 `RETRY_MAX` 配置 |
+| `CONSOLE_HOST` / `CONSOLE_PORT` | 地址固定 `127.0.0.1`；端口默认 4180，兼容旧 `UI_PORT`，`CONSOLE_PORT` 优先 |
 
 ## 新增脚本
 `status`、`followups`、`replies`、`report`、`playbook`、`playbook:propose`、`playbook:review`、`runs`、`config:show`、`job:ingest`、`console`、`console:dev`、`console:build`
+
+## 当前 M0 实现
+
+目录图包含后续里程碑目标；实际已提供脚本以 `package.json` 为准。`console` / `console:dev` / `console:build`、`status`、`followups list|show <id>`、`runs list|show|retry|cancel <id>` 已可用。`dev:ui` 和 `start` 保持兼容。
+
+回访记录由 SQLite 中已持久化的运行、逐用户匿名上下文、分类结果与草稿投影；历史数据缺失字段不回填猜测值。Playbook 当前规则仍存放在 `playbook.json`，新增 `VERSION`，完整历史版本管理在 M1 实现。

@@ -1,17 +1,17 @@
 # 05 运行部署与成本
 
 ## 阶段一：本机运行（MVP 采用）
-- 触发：cron（Linux）或 launchd（macOS），分别调用 `npm run job:daily` 与 `npm run job:weekly`。
+- 触发：cron（Linux）或 launchd（macOS），分别调用 `pnpm job:daily` 与 `pnpm job:weekly`。
 - 存储：本地 SQLite 文件，位于 `data/`。
-- 审批：网页控制台（`npm run console`，仅监听本机），命令行 `npm run approve` 作为备用。
+- 审批：网页控制台（`pnpm console`，仅监听本机），命令行 `pnpm approve` 作为备用。
 - 回复接收：每次运行时轮询 Resend 的接收接口，不依赖 webhook。
-- 风险：本机休眠或关机会漏跑。对策：`job:catchup` 在启动时检查上次成功运行时间并补跑；日志写入 `logs/`。
+- 已确认运行策略：工作日 09:00（Asia/Taipei）；休眠或中断造成的漏跑全部跳过，等待下次计划，不实现 `job:catchup`。模型/API 失败、取消或进程中断均由人工重试。日志写入 `logs/`。
 - 密钥：`.env` 权限设为仅本人可读，不入库。
 
 cron 示例（路径自行替换）：
 ```
-0 9 * * *  cd /path/to/followup-agent && npm run job:daily  >> logs/daily.log 2>&1
-0 9 * * 1  cd /path/to/followup-agent && npm run job:weekly >> logs/weekly.log 2>&1
+0 9 * * 1-5  cd /path/to/followup-agent && pnpm job:daily  >> logs/daily.log 2>&1
+0 9 * * 1  cd /path/to/followup-agent && pnpm job:weekly >> logs/weekly.log 2>&1
 ```
 
 ## 阶段二：迁移到 Cloudflare（MVP 之后，非必须）

@@ -2,8 +2,9 @@ import { createClient } from '@libsql/client';
 import type { Client, Transaction, InValue, Row } from '@libsql/client';
 import { readFile, readdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { AppError } from '../../core/domain/index.ts';
-import type { RunDetail, RunRecord } from '../../core/domain/index.ts';
+import type { AuditContext, AuditLogEntry, RunDetail, RunRecord } from '../../core/domain/index.ts';
 import type { RecordStore } from '../../core/ports/index.ts';
 import { initialSchedule, nextWeekdayRun } from '../../core/schedule/index.ts';
 import type { FollowupSchedule, ScheduleOccurrence, ScheduleSnapshot } from '../../core/schedule/index.ts';
@@ -13,6 +14,7 @@ const decode = <T>(rows: Row[]): T[] => rows.map(row => JSON.parse(String(row.pa
 // Native SQLite waits block the event loop. Serialize local connections together;
 // separate processes still coordinate through SQLite's write lock and constraints.
 const writes = new Map<string, Promise<unknown>>();
+const summarize = (detail: RunDetail) => ({ status: detail.run.status, step: detail.run.step, attempt: detail.run.attempt, drafts: detail.drafts.length, modelCalls: detail.run.usage.modelCalls, pending: detail.drafts.filter(d => d.status === 'pending_approval').length, approved: detail.drafts.filter(d => d.status === 'approved').length, rejected: detail.drafts.filter(d => d.status === 'rejected').length, simulated: detail.drafts.filter(d => d.status === 'simulated').length });
 
 export class SqliteRecordStore implements RecordStore {
   readonly client: Client;
@@ -33,14 +35,22 @@ export class SqliteRecordStore implements RecordStore {
     void settled.finally(() => { if (writes.get(this.url) === settled) writes.delete(this.url); });
     return next;
   }
-  async createRun(run: RunRecord): Promise<void> {
+  private async audit(db: Executor, entry: Omit<AuditLogEntry, 'id'>): Promise<void> {
+    const record = { ...entry, id: randomUUID() };
+    await db.execute({ sql: 'INSERT INTO audit_logs (id, run_id, created_at, payload) VALUES (?, ?, ?, ?)', args: [record.id, record.runId, record.at, JSON.stringify(record)] });
+  }
+  async createRun(run: RunRecord, audit: AuditContext = { actor: 'system', action: 'run.create' }): Promise<void> {
     await this.exclusive(async () => {
+      const tx = await this.client.transaction('write');
       try {
-        await this.client.execute({ sql: 'INSERT INTO runs (id, status, playbook, created_at, payload) VALUES (?, ?, ?, ?, ?)', args: [run.id, run.status, run.playbook.id, run.createdAt, JSON.stringify(run)] });
+        await tx.execute({ sql: 'INSERT INTO runs (id, status, playbook, created_at, payload) VALUES (?, ?, ?, ?, ?)', args: [run.id, run.status, run.playbook.id, run.createdAt, JSON.stringify(run)] });
+        await this.audit(tx, { ...audit, objectType: 'run', objectId: run.id, runId: run.id, at: run.createdAt, playbookVersion: run.playbook.version ?? null, before: {}, after: { status: run.status } });
+        await tx.commit();
       } catch (error) {
+        await tx.rollback();
         if (String(error).includes('UNIQUE constraint')) throw new AppError('RUN_ALREADY_ACTIVE', 409);
         throw new AppError('STORAGE_WRITE_FAILED', 500);
-      }
+      } finally { tx.close(); }
     });
   }
   private async readDetail(db: Executor, id: string): Promise<RunDetail> {
@@ -53,11 +63,35 @@ export class SqliteRecordStore implements RecordStore {
   async listRuns(): Promise<RunRecord[]> {
     return this.exclusive(async () => decode<RunRecord>((await this.client.execute('SELECT payload FROM runs ORDER BY created_at DESC LIMIT 100')).rows));
   }
-  async mutate(id: string, change: (detail: RunDetail) => void): Promise<RunDetail> {
+  async listRunDetails(): Promise<RunDetail[]> {
+    return this.exclusive(async () => {
+      const runs = decode<RunRecord>((await this.client.execute('SELECT payload FROM runs ORDER BY created_at DESC')).rows);
+      const grouped = async <T>(table: string) => {
+        const result = new Map<string, T[]>();
+        for (const row of (await this.client.execute(`SELECT run_id, payload FROM ${table} ORDER BY rowid`)).rows) {
+          const id = String(row.run_id);
+          if (!result.has(id)) result.set(id, []);
+          result.get(id)!.push(JSON.parse(String(row.payload)) as T);
+        }
+        return result;
+      };
+      const drafts = await grouped<RunDetail['drafts'][number]>('drafts');
+      const events = await grouped<RunDetail['events'][number]>('run_events');
+      const edits = await grouped<RunDetail['edits'][number]>('human_edits');
+      return runs.map(run => ({ run, drafts: drafts.get(run.id) ?? [], events: events.get(run.id) ?? [], edits: edits.get(run.id) ?? [] }));
+    });
+  }
+  async listAudit(runId?: string): Promise<AuditLogEntry[]> {
+    return this.exclusive(async () => decode<AuditLogEntry>((await this.client.execute({ sql: `SELECT payload FROM audit_logs ${runId ? 'WHERE run_id = ?' : ''} ORDER BY created_at DESC, rowid DESC LIMIT 300`, args: runId ? [runId] : [] })).rows));
+  }
+  async mutate(id: string, change: (detail: RunDetail) => void, audit?: AuditContext): Promise<RunDetail> {
     return this.exclusive(async () => {
       const tx = await this.client.transaction('write');
       try {
         const detail = await this.readDetail(tx, id);
+        const before = summarize(detail);
+        const original = JSON.stringify(detail);
+        const eventCount = detail.events.length;
         change(detail);
         const exec = async (sql: string, args: InValue[]) => { await tx.execute({ sql, args }); };
         await exec('UPDATE runs SET status = ?, payload = ? WHERE id = ?', [detail.run.status, JSON.stringify(detail.run), id]);
@@ -66,6 +100,7 @@ export class SqliteRecordStore implements RecordStore {
         }
         for (const event of detail.events) await exec('INSERT OR IGNORE INTO run_events (id, run_id, payload) VALUES (?, ?, ?)', [event.id, id, JSON.stringify(event)]);
         for (const edit of detail.edits) await exec('INSERT OR IGNORE INTO human_edits (id, run_id, draft_id, payload) VALUES (?, ?, ?, ?)', [edit.id, id, edit.draftId, JSON.stringify(edit)]);
+        if (JSON.stringify(detail) !== original) await this.audit(tx, { actor: 'system', action: detail.events.length > eventCount ? detail.events.at(-1)!.code : 'run.update', objectType: 'run', objectId: id, ...audit, runId: id, at: new Date().toISOString(), playbookVersion: detail.run.playbook.version ?? null, before, after: summarize(detail) });
         await tx.commit();
         return detail;
       } catch (error) {
@@ -103,10 +138,12 @@ export class SqliteRecordStore implements RecordStore {
         const schedule = await this.readSchedule(tx);
         if (schedule.version !== version) throw new AppError('SCHEDULE_VERSION_CONFLICT', 409);
         if (schedule.enabled !== enabled) {
+          const before = { enabled: schedule.enabled, version: schedule.version };
           schedule.enabled = enabled;
           schedule.nextRunAt = enabled ? nextWeekdayRun(now) : null;
           schedule.version++;
           await tx.execute({ sql: 'UPDATE schedules SET payload = ? WHERE id = ?', args: [JSON.stringify(schedule), schedule.id] });
+          await this.audit(tx, { actor: 'operator', action: enabled ? 'schedule.enable' : 'schedule.pause', objectType: 'schedule', objectId: schedule.id, runId: null, playbookVersion: null, at: now, before, after: { enabled, version: schedule.version } });
         }
         await tx.commit();
         return schedule;
@@ -146,6 +183,7 @@ export class SqliteRecordStore implements RecordStore {
             }
           }
           await tx.execute({ sql: 'INSERT INTO schedule_occurrences (schedule_id, planned_at, payload) VALUES (?, ?, ?)', args: [schedule.id, plannedAt, JSON.stringify(occurrence)] });
+          await this.audit(tx, { actor: 'system', action: `schedule.${occurrence.outcome}`, objectType: 'schedule', objectId: schedule.id, runId: occurrence.runId ?? null, playbookVersion: started?.playbook.version ?? null, at: now, before: { plannedAt }, after: { outcome: occurrence.outcome, reason: occurrence.reason ?? null } });
         }
         await tx.execute({ sql: 'UPDATE schedules SET payload = ? WHERE id = ?', args: [JSON.stringify(schedule), schedule.id] });
         await tx.commit();

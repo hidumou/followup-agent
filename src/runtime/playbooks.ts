@@ -16,7 +16,9 @@ export async function loadPlaybooks(root: string): Promise<Playbook[]> {
     if (!entry.isDirectory() || entry.name === 'default') continue;
     const parsed = schema.parse(JSON.parse(await readFile(join(root, entry.name, 'playbook.json'), 'utf8')));
     if (parsed.id !== entry.name) throw new Error('PLAYBOOK_DIRECTORY_MISMATCH');
-    result.push(parsed);
+    const version = Number((await readFile(join(root, entry.name, 'VERSION'), 'utf8')).trim());
+    if (!Number.isSafeInteger(version) || version < 1) throw new Error('INVALID_PLAYBOOK_VERSION');
+    result.push({ ...parsed, version });
   }
   return result;
 }

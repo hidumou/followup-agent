@@ -9,11 +9,11 @@ async function main() {
     let { schedule } = await app.store.getSchedule();
     if (command === 'install') {
       await installRunner(app.config);
-      schedule = await app.store.setScheduleEnabled(true, schedule.version);
+      schedule = await app.services.operations.setSchedule(true, schedule.version);
       await wakeRunner(app.config);
     }
     if (command === 'uninstall') {
-      schedule = await app.store.setScheduleEnabled(false, schedule.version);
+      schedule = await app.services.operations.setSchedule(false, schedule.version);
       await uninstallRunner(app.config);
     }
     console.log(JSON.stringify({ schedule, runner: await runnerStatus(app.config, true) }, null, 2));

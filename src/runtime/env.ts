@@ -17,6 +17,8 @@ const schema = z.object({
   MAX_USERS_PER_RUN: z.coerce.number().int().min(1).max(100).default(10),
   MAX_LLM_CALLS_PER_RUN: z.coerce.number().int().min(1).max(1000).default(30),
   DAILY_TOKEN_BUDGET: z.coerce.number().int().positive().default(100000),
+  CONSOLE_HOST: z.literal('127.0.0.1').default('127.0.0.1'),
+  CONSOLE_PORT: z.coerce.number().int().min(1024).max(65535).optional(),
   UI_PORT: z.coerce.number().int().min(1024).max(65535).default(4180),
 });
 export interface AppConfig {
@@ -41,7 +43,7 @@ export function readEnv(root = resolveProjectRoot(), source: Record<string, stri
   const dbPath = resolve(root, env.DB_URL.slice(5));
   return {
     root, dbUrl: `file:${dbPath}`, workflowDbUrl: `file:${dbPath}.workflow.db`, outputDirectory: resolve(root, 'out'),
-    playbook: env.PLAYBOOK, port: env.UI_PORT,
+    playbook: env.PLAYBOOK, port: env.CONSOLE_PORT ?? env.UI_PORT,
     model: { mode: env.MODEL_MODE, fast: env.MODEL_FAST, writer: env.MODEL_WRITER, apiKey: env.OPENAI_API_KEY, budgetUsd: env.LLM_BUDGET_USD, timeoutMs: env.LLM_TIMEOUT_MS, timezone: env.BUDGET_TIMEZONE },
     limits: { maxUsers: env.MAX_USERS_PER_RUN, maxCalls: env.MAX_LLM_CALLS_PER_RUN, dailyTokens: env.DAILY_TOKEN_BUDGET },
   };

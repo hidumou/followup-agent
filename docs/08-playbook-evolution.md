@@ -43,7 +43,7 @@ proposal 类型：`add_guideline`、`refine_guideline`、`add_example`、`refine
 | 回复率变化 | 聚合统计 | 弱信号，仅供参考 | 受很多外部因素影响，不作为提议依据 |
 
 ## 提议流程
-1. **触发**：周报之后自动运行，或手动 `npm run playbook:propose`。新增信号少于 `PROPOSAL_MIN_SIGNALS` 时不运行，避免噪声。
+1. **触发**：周报之后自动运行，或手动 `pnpm playbook:propose`。新增信号少于 `PROPOSAL_MIN_SIGNALS` 时不运行，避免噪声。
 2. **取数**：只读取自上次提议以来的信号，并带上当时的 playbook 版本。回复原文标记为不可信数据。
 3. **归因**：对相似信号聚类。一个模式至少有 `PROPOSAL_MIN_EVIDENCE` 条独立证据才能成为 proposal；不足的进入观察清单，不提议。
 4. **生成 proposal**：类型、目标文件、最小 diff、理由、证据引用（记录 ID）、预期影响、可能的副作用、风险等级。每次最多 `PROPOSAL_MAX_PER_RUN` 条。

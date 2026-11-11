@@ -1,4 +1,5 @@
-import type { Contact, Draft, ModelInfo, ModelPlan, Playbook, RunDetail, RunRecord, UserContext, UserRef } from '../domain/index.ts';
+import type { AuditContext, AuditLogEntry, Contact, Draft, ModelInfo, ModelPlan, Playbook, RunDetail, RunRecord, UserContext, UserRef } from '../domain/index.ts';
+import type { FollowupSchedule, ScheduleSnapshot } from '../schedule/index.ts';
 
 export interface UserSource {
   listChurned(options: { limit: number }): Promise<UserRef[]>;
@@ -14,13 +15,19 @@ export interface DraftModel {
 }
 export interface ModelCallOptions { signal: AbortSignal; reportUsage(usage: { inputTokens: number; outputTokens: number }): Promise<void> }
 export interface RecordStore {
-  createRun(run: RunRecord): Promise<void>;
+  createRun(run: RunRecord, audit?: AuditContext): Promise<void>;
   getRun(id: string): Promise<RunDetail>;
   listRuns(): Promise<RunRecord[]>;
-  mutate(id: string, change: (detail: RunDetail) => void): Promise<RunDetail>;
+  mutate(id: string, change: (detail: RunDetail) => void, audit?: AuditContext): Promise<RunDetail>;
+  listRunDetails(): Promise<RunDetail[]>;
+  listAudit(runId?: string): Promise<AuditLogEntry[]>;
   reservedUsers(playbook: string, exceptRun?: string): Promise<Set<string>>;
   dailyTokens(day: string): Promise<number>;
   totalCostUsd(): Promise<number>;
+}
+export interface ScheduleStore {
+  getSchedule(): Promise<ScheduleSnapshot>;
+  setScheduleEnabled(enabled: boolean, version: number, now?: string): Promise<FollowupSchedule>;
 }
 export interface DraftFiles {
   saveDraft(draft: Draft): Promise<void>;

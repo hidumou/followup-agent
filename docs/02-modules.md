@@ -71,7 +71,7 @@ interface Notifier {
 
 ## 评估与可观测
 - 在线：每次人工审批记录「草稿 vs 最终版」差异与是否被拒；记录结论被推翻的情况。
-- 离线：`npm run eval` 对 fixtures 运行 scorers（MVP 最少 2 个：护栏通过率、抽取结果结构有效率）。
+- 离线：`pnpm eval` 对 fixtures 运行 scorers（MVP 最少 2 个：护栏通过率、抽取结果结构有效率）。
 - 追踪：使用 Mastra 的追踪与 Studio；每次运行记录模型调用次数与 token 用量。
 
 ## 新增模块（控制台与 playbook 演进）

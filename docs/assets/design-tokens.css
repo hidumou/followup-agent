@@ -24,6 +24,7 @@
   --radius-md: 8px;
   --radius-pill: 999px;
 
+  --viewport-min: 1024px;
   --topbar-h: 48px;
   --nav-w: 220px;
   --nav-w-collapsed: 64px;
@@ -31,6 +32,12 @@
   --reading-max: 760px;
   --queue-w: 320px;
   --row-h: 44px;
+  --control-h: 36px;
+  --icon-size: 18px;
+  --icon-sm: 14px;
+  --dialog-w: 480px;
+  --chart-h: 6px;
+  --editor-h: 260px;
 
   --dur-fast: 120ms;
   --dur-base: 200ms;

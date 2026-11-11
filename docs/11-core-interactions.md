@@ -30,11 +30,11 @@
   - `SEND_MODE=dry-run`：不发送，写入 `out/outbox/`，状态记为 `sent`（带 dry-run 标记）。
   - `live`：收件人不在白名单 → 拒绝发送并报错，状态保持 `approved`。
   - 发送失败：状态 `send_failed`，记录原因，等待手动重试。
-- CLI：`npm run approve`（逐条交互，输入 a / e / r / s）。
+- CLI：`pnpm approve`（逐条交互，输入 a / e / r / s）。
 - 验收：护栏失败的草稿无法批准；拒绝必须有原因码；重复提交不会重复发送；dry-run 不产生真实邮件。
 
 ## I-02 回复入库与复核
-- 触发：`reply-ingest` 运行，或手动 `npm run job:ingest`。
+- 触发：`reply-ingest` 运行，或手动 `pnpm job:ingest`。
 - 步骤：拉取新回复 → 匹配到回访记录 → `redact()` → 抽取 insight → 写入。置信度低于 `LOW_CONFIDENCE`（默认 0.6）或标签为「其他」的标记为待复核。
 - 人工复核：确认 / 修正标签（填备注）/ 标记不准确（原因：标签错、漏掉要点、过度解读、其他）。
 - 写入：修正写 `insight_overrides`；审计日志。
@@ -42,7 +42,7 @@
   - 无法匹配到回访记录：放入「未匹配」列表，不进入模型。
   - 回复中含联系方式：redact 后再处理；原文仅存本地，不进入日志。
   - 重复拉取：以邮件 ID 去重。
-- CLI：`npm run replies -- list --needs-review`、`npm run replies -- review <id>`。
+- CLI：`pnpm replies -- list --needs-review`、`pnpm replies -- review <id>`。
 - 验收：进入模型的回复文本不含邮箱与手机号（有测试）；去重有效；修正被记录。
 
 ## I-03 报告生成、确认、反馈
@@ -53,7 +53,7 @@
   3. 阅读者提交反馈：`USEFUL`、`UNCLEAR`、`MISSING_INFO`、`NOT_ACTIONABLE`、`OTHER` + 备注。MVP 由操作者代为录入。
 - 写入：报告记录（含 playbook 版本）；反馈写 `report_feedback`。
 - 异常与边界：当日无数据 → 生成「无新增」简报，不调用模型；周报生成失败 → 保留日汇总，提醒操作者重试。
-- CLI：`npm run report -- show weekly`、`report -- send <id>`、`report -- feedback <id>`。
+- CLI：`pnpm report -- show weekly`、`report -- send <id>`、`report -- feedback <id>`。
 - 验收：每条结论可追溯到证据；未确认的周报不会发送给决策者（审阅模式下）。
 
 ## I-04 Playbook 建议的审阅（M6）
@@ -71,14 +71,14 @@
   - 回归显示「不建议采纳」：仍可采纳，但需勾选「我已了解回归结果」并填写理由。
   - 基础版本已变化（审阅期间有人改了 playbook）：proposal 标为 `expired`，需重新生成。
   - 同时有多条 proposal 触及同一文件：逐条处理，每次采纳后其余基于旧版本的 proposal 自动重新校验。
-- CLI：`npm run playbook:review`。
+- CLI：`pnpm playbook:review`。
 - 验收：不存在 AI 直接写入 playbook 的路径；每个版本可追溯到 proposal 或手动修改。
 
 ## I-05 Playbook 手动编辑与回滚
 - 手动编辑：保存时必须填写变更说明，生成新版本，来源标记 `manual`。直接改文件后启动，系统检测差异并自动生成 `manual` 版本，同时要求补充说明。
 - 回滚：选择旧版本 → 确认「将以该版本内容创建新版本」→ 填写原因 → 新版本生效。不删除历史。
 - 受限范围：控制台编辑器对 🔒 文件同样可编辑（操作者有权限），但会提示这些内容属于安全边界，并要求二次确认。
-- CLI：`npm run playbook -- rollback <version>`。
+- CLI：`pnpm playbook -- rollback <version>`。
 - 验收：回滚后历史记录仍显示各自生成时的版本号。
 
 ## I-06 预算与上限触发
@@ -91,10 +91,10 @@
 - 验收：触及上限后不再产生任何模型调用（有测试）。
 
 ## I-07 失败与重试
-- 模型或外部 API 调用失败：按指数退避重试 `RETRY_MAX` 次（默认 2）；仍失败则该步骤标记 `failed` 并记录原因，不阻塞其他用户。
+- 已确认覆盖策略：模型或外部 API 调用失败立即停止当前运行，标记 `failed` 并记录原因；不自动重试、不继续处理其他用户。取消或进程重启中断也等待人工重试。
 - 发送失败：不自动重发。
-- 重试入口：`npm run runs -- retry <runId>` 或 `approve` 队列里的失败项。
-- 验收：单个用户失败不会中断整批；重试不会产生重复邮件。
+- 重试入口：`pnpm runs -- retry <runId>` 或 `approve` 队列里的失败项。
+- 验收：失败后无额外模型调用；已完成结果保留；人工重试跳过已保存草稿与发送凭据，不产生重复发送。
 
 ## I-08 发送模式保护
 - 发送模式只能通过 `.env` 修改并重启，界面不提供切换。

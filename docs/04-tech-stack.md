@@ -6,7 +6,7 @@
 |---|---|---|
 | 语言 | TypeScript（strict） | 你习惯 TypeScript；与 Mastra 一致 |
 | 运行时 | Node.js LTS | Mastra 与 Resend SDK 均支持；版本要求以 Mastra 文档为准 |
-| 包管理 | npm | 与 Mastra 官方脚手架一致，减少摩擦 |
+| 包管理 | pnpm | 用户确认，使用 pnpm-lock.yaml 固定依赖 |
 | Agent 框架 | Mastra（`@mastra/core` 等） | 覆盖 agent、workflow、暂停恢复、记忆、评估、追踪、模型路由，TypeScript 原生 |
 | 模型接入 | Mastra 模型路由 | 用 `provider/model` 指定；支持 OpenAI、火山引擎（OpenAI 兼容接口），也可配置自定义 OpenAI 兼容地址 |
 | Schema 与校验 | zod | 结构化输出、环境变量、工具入参统一校验 |

@@ -7,6 +7,7 @@ export interface Contact { email: string; name?: string }
 export interface Label { id: string; name: string; feature?: string; lessThan?: number; subject: string; body: string }
 export interface Playbook {
   id: string; name: string; description: string; goal: string;
+  version?: number;
   allowedFeatures: string[]; labels: Label[];
   ai?: { classifyInstructions: string; draftInstructions: string };
   rules: { minLength: number; maxLength: number; requiredText: string; forbiddenPhrases: string[] };
@@ -24,15 +25,30 @@ export interface RunRecord {
   currentUserId?: string; error?: string; cancelRequested: boolean;
   model?: ModelInfo; calls?: ModelCall[];
   trigger?: RunTrigger;
+  contexts?: Record<string, UserContext>;
+  classifications?: Record<string, string>;
 }
 export interface Draft {
   id: string; runId: string; userId: string; label: string; labelName: string;
   subject: string; body: string; originalSubject: string; originalBody: string;
   status: DraftStatus; version: number; createdAt: string; updatedAt: string; receiptId?: string;
+  playbookVersion?: number;
 }
 export interface RunEvent { id: string; at: string; kind: 'info' | 'success' | 'warning' | 'error'; code: string; step: StepId; userId?: string }
 export interface HumanEdit { id: string; draftId: string; at: string; decision: 'approved' | 'rejected'; before: { subject: string; body: string }; after: { subject: string; body: string } }
 export interface RunDetail { run: RunRecord; drafts: Draft[]; events: RunEvent[]; edits: HumanEdit[] }
+export interface AuditContext { actor: 'operator' | 'system'; action: string; objectType?: 'run' | 'draft' | 'schedule'; objectId?: string }
+export interface AuditLogEntry extends AuditContext {
+  id: string; at: string; runId: string | null; playbookVersion: number | null;
+  before: Record<string, string | number | boolean | null>; after: Record<string, string | number | boolean | null>;
+}
+export interface FollowupRecord {
+  id: string; runId: string; userId: string; playbookId: string; playbookName: string; playbookVersion: number | null;
+  status: DraftStatus | 'discovered' | 'failed' | 'cancelled' | 'interrupted';
+  label: string | null; labelName: string | null; confidence: number | null;
+  discoveredAt: string; draftedAt: string | null; updatedAt: string; dryRun: true;
+}
+export interface FollowupDetail { followup: FollowupRecord; context: UserContext | null; draft: Draft | null; events: RunEvent[]; edits: HumanEdit[]; run: RunRecord }
 export interface ReviewInput { version: number; decision: 'approved' | 'rejected'; subject: string; body: string }
 export class AppError extends Error {
   code: string;

@@ -15,6 +15,7 @@ import { createDailyFollowup } from '../mastra/workflows/daily-followup.ts';
 import { readEnv } from './env.ts';
 import type { AppConfig } from './env.ts';
 import { MastraDraftModel } from '../adapters/mastra/model.ts';
+import { ConsoleQueryService, OperatorService } from '../core/services/index.ts';
 
 export async function createContainer(config: AppConfig = readEnv()) {
   await mkdir(dirname(config.dbUrl.slice(5)), { recursive: true });
@@ -69,13 +70,7 @@ export async function createContainer(config: AppConfig = readEnv()) {
     });
     tasks.set(run.id, task);
   }
-  return {
-    config, store, engine, mastra, playbooks,
-    async tickSchedule(at?: string) {
-      const run = await store.tickSchedule(plannedAt => engine.prepare(getPlaybook(playbooks, config.playbook), config.limits, { kind: 'scheduled', scheduleId: 'weekday-followup', plannedAt }), at);
-      if (run) launch(run);
-      return run;
-    },
+  const operations = new OperatorService({
     async start(playbookId = config.playbook, maxUsers = config.limits.maxUsers) {
       if (!Number.isInteger(maxUsers) || maxUsers < 1 || maxUsers > config.limits.maxUsers) throw new AppError('USER_LIMIT');
       const run = await engine.create(getPlaybook(playbooks, playbookId), { ...config.limits, maxUsers });
@@ -92,9 +87,20 @@ export async function createContainer(config: AppConfig = readEnv()) {
       launch(detail.run);
       return detail;
     },
+    cancel: (id: string) => engine.cancel(id),
+  }, store);
+  const queries = new ConsoleQueryService(store, engine.deps.modelBudget!.day);
+  return {
+    config, store, engine, mastra, playbooks, services: { operations, queries },
+    start: operations.start.bind(operations), review: operations.review.bind(operations), retry: operations.retry.bind(operations), cancel: operations.cancel.bind(operations),
+    async tickSchedule(at?: string) {
+      const run = await store.tickSchedule(plannedAt => engine.prepare(getPlaybook(playbooks, config.playbook), config.limits, { kind: 'scheduled', scheduleId: 'weekday-followup', plannedAt }), at);
+      if (run) launch(run);
+      return run;
+    },
     async wait(id: string) { await tasks.get(id); return store.getRun(id); },
     async close() {
-      for (const id of tasks.keys()) { try { await engine.cancel(id); } catch { /* The task may have just completed. */ } }
+      for (const id of tasks.keys()) { try { await engine.cancel(id, 'system'); } catch { /* The task may have just completed. */ } }
       await Promise.all(tasks.values());
       store.close();
       await workflowStorage.close();

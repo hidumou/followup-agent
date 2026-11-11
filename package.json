@@ -22,12 +22,22 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:ai": "node --env-file-if-exists=.env src/cli/test-ai.ts",
-    "test:ai:tools": "node --env-file-if-exists=.env src/cli/test-ai-tools.ts"
+    "test:ai:tools": "node --env-file-if-exists=.env src/cli/test-ai-tools.ts",
+    "console": "node --env-file-if-exists=.env src/console/server/index.ts",
+    "console:dev": "node --env-file-if-exists=.env src/console/server/index.ts --dev",
+    "console:build": "vite build",
+    "status": "node --env-file-if-exists=.env src/cli/console-query.ts status",
+    "followups": "node --env-file-if-exists=.env src/cli/console-query.ts followups",
+    "runs": "node --env-file-if-exists=.env src/cli/console-query.ts runs"
   },
   "dependencies": {
+    "@hono/node-server": "^1.19.18",
     "@libsql/client": "^0.18.0",
     "@mastra/core": "^1.82.0",
     "@mastra/libsql": "^1.29.0",
+    "diff": "^9.0.0",
+    "hono": "^4.13.17",
+    "lucide-react": "^1.71.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "zod": "^4.6.7"

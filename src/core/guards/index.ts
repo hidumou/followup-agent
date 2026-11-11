@@ -18,3 +18,7 @@ export function assertBudget(limits: Limits, usage: Usage, users: number, dailyT
   if (usage.modelCalls >= limits.maxCalls) throw new AppError('CALL_LIMIT');
   if (dailyTokens + nextTokens > limits.dailyTokens) throw new AppError('TOKEN_LIMIT');
 }
+
+export function assertCostBudget(used: number, next: number, limit: number): void {
+  if (![used, next, limit].every(value => Number.isFinite(value) && value >= 0) || used + next > limit) throw new AppError('COST_LIMIT');
+}

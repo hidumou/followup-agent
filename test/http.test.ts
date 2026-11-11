@@ -25,7 +25,13 @@ afterEach(async () => { await new Promise<void>(resolve => server.close(() => re
 const post = (path: string, body: unknown, headers: Record<string, string> = {}) => fetch(base + path, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) });
 
 it('exposes a working start, status, review and simulated-send contract', async () => {
-  expect((await fetch(base + '/api/config')).status).toBe(200);
+  app.config.model.apiKey = 'synthetic-private-config-value';
+  const configResponse = await fetch(base + '/api/config');
+  expect(configResponse.status).toBe(200);
+  const configBody = await configResponse.text();
+  expect(configBody).not.toContain('synthetic-private-config-value');
+  expect(configBody).not.toContain('apiKey');
+  expect(JSON.parse(configBody).model.mode).toBe('stub');
   const response = await post('/api/runs', { playbook: 'demo', maxUsers: 1 });
   expect(response.status).toBe(202);
   const { run } = await response.json();

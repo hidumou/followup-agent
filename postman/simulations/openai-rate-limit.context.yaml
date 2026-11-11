@@ -1,0 +1,30 @@
+purpose:
+  stands_in_for: OpenAI Responses API 的 429 错误；只覆盖 POST /v1/responses。
+  unblocks: 不消耗 API 额度，验证真实 Mastra HTTP 调用遇到限流时的运行状态和预算记录。
+assumptions:
+  - id: caller-stops-after-one-rate-limit
+    status: supported
+    claim: 当前调用链收到本地替身返回的 429 后仅发起一次请求，不创建草稿，保留未确认用量的预算预留。
+    reason: 独立 Postman 进程记录一次 POST 429；应用侧断言 failed、llmCalls=1、drafts=0、unknown reservation。
+    verification: 2026-11-11 使用本地端口运行 simulation，执行 scripts/check-model-simulation.ts；返回 MODEL_RATE_LIMIT，日志仅一条请求。本测试不证明真实服务可用性。
+    source: scripts/check-model-simulation.ts; postman/mocks/openai-rate-limit/default.js; test/real-model.test.ts
+    updated_at: "2026-11-11"
+  - id: provider-model-quality-and-access
+    status: unknown
+    claim: 当前账户可调用 gpt-6-luna，且中文分类与回访话术满足本项目要求。
+    reason: 尚未进行付费实测；本地替身不生成真实模型结果。
+    verification: 已核对 OpenAI 模型与结构化输出文档；新密钥的本机配置与真实联调预算仍待确认。工具调用稳定性也尚未实测。
+    source: https://developers.openai.com/api/docs/models/gpt-6-luna; docs/10-ai-integration.md
+    updated_at: "2026-11-11"
+  - id: mock-provenance
+    status: supported
+    claim: 替身由公开协议子集生成，只模拟文档化的 429 JSON 错误，不代表供应商发布的官方 mock。
+    reason: CLI 不提供 postman status，无法确认登录状态，因此跳过远端 owner mock 检索；未连接或发布任何 Postman 工作区。
+    verification: postman mock generate 从 Responses 的最小 OpenAPI 429 子集生成处理器，未覆盖路径改为 501；运行前核对公开 API 文档。
+    source: https://developers.openai.com/api/docs/guides/error-codes; postman/mocks/openai-rate-limit/default.js
+    updated_at: "2026-11-11"
+fingerprints:
+  - id: local-m1-model-integration
+    date: "2026-11-11"
+    commit: "24723fc + 未提交的本次 M1 模型接入改动"
+    cli: "1.75.0"

@@ -1,0 +1,8 @@
+simulation: openai-rate-limit
+routing: path
+mocks:
+  - name: openai-rate-limit
+    routeKey: openai
+    origin:
+      - api.openai.com
+    path: postman/mocks/openai-rate-limit/config.yaml

@@ -39,7 +39,7 @@ export function createHttpServer(app: AppContainer, assets: () => Middleware | u
         else respond(404, { error: 'NOT_FOUND' });
         return;
       }
-      if (method === 'GET' && path === '/api/config') return respond(200, { playbooks: app.playbooks, defaultPlaybook: app.config.playbook, limits: app.config.limits, mode: 'dry-run', model: 'stub' });
+      if (method === 'GET' && path === '/api/config') return respond(200, { playbooks: app.playbooks, defaultPlaybook: app.config.playbook, limits: app.config.limits, mode: 'dry-run', model: app.engine.deps.model.info ?? { mode: 'stub', fast: 'stub', writer: 'stub' }, budgetUsd: app.config.model.budgetUsd });
       if (method === 'GET' && path === '/api/runs') return respond(200, { runs: await app.store.listRuns() });
       if (method === 'POST' && path === '/api/runs') {
         const input = startSchema.parse(await body(request));

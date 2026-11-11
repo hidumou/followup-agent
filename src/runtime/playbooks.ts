@@ -6,6 +6,7 @@ import type { Playbook } from '../core/domain/index.ts';
 const schema = z.object({
   id: z.string().regex(/^[a-z][a-z0-9-]*$/), name: z.string(), description: z.string(), goal: z.string(),
   allowedFeatures: z.array(z.string()),
+  ai: z.object({ classifyInstructions: z.string().min(1).max(8000), draftInstructions: z.string().min(1).max(8000) }).optional(),
   labels: z.array(z.object({ id: z.string(), name: z.string(), feature: z.string().optional(), lessThan: z.number().optional(), subject: z.string(), body: z.string() })).min(1),
   rules: z.object({ minLength: z.number().positive(), maxLength: z.number().positive(), requiredText: z.string(), forbiddenPhrases: z.array(z.string()) }),
 });

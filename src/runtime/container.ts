@@ -14,6 +14,7 @@ import { loadPlaybooks } from './playbooks.ts';
 import { createDailyFollowup } from '../mastra/workflows/daily-followup.ts';
 import { readEnv } from './env.ts';
 import type { AppConfig } from './env.ts';
+import { MastraDraftModel } from '../adapters/mastra/model.ts';
 
 export async function createContainer(config: AppConfig = readEnv()) {
   await mkdir(dirname(config.dbUrl.slice(5)), { recursive: true });
@@ -24,7 +25,8 @@ export async function createContainer(config: AppConfig = readEnv()) {
   const files = new FileMailer(config.outputDirectory);
   const engine = new FollowupEngine({
     store, files, users: new MockUserSource(await loadMockUsers(join(config.root, 'fixtures/users.json'))),
-    model: new StubModel(), sender: new SendService(files),
+    model: config.model.mode === 'openai' ? new MastraDraftModel(config.model) : new StubModel(), sender: new SendService(files),
+    modelBudget: { totalUsd: config.model.budgetUsd, timeoutMs: config.model.timeoutMs, day: iso => new Intl.DateTimeFormat('en-CA', { timeZone: config.model.timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso)) },
     clock: { now: () => new Date().toISOString(), id: randomUUID, pid: process.pid },
   });
   const workflowStorage = new LibSQLStore({ id: 'followup-workflows', url: config.workflowDbUrl });
@@ -43,6 +45,7 @@ export async function createContainer(config: AppConfig = readEnv()) {
         detail.run.status = 'interrupted';
         detail.run.ownerPid = null;
         detail.run.error = 'PROCESS_INTERRUPTED';
+        for (const call of detail.run.calls ?? []) if (call.state === 'reserved') call.state = 'unknown';
         detail.run.finishedAt = new Date().toISOString();
         engine.event(detail, 'PROCESS_INTERRUPTED', 'warning');
       });

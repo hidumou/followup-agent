@@ -69,8 +69,12 @@ export class SqliteRecordStore implements RecordStore {
     return new Set(result.rows.map(row => String(row.user_id)));
   }
   async dailyTokens(day: string): Promise<number> {
-    const result = await this.client.execute({ sql: "SELECT payload FROM runs WHERE substr(created_at, 1, 10) = ?", args: [day] });
-    return decode<RunRecord>(result.rows).reduce((sum, run) => sum + run.usage.inputTokens + run.usage.outputTokens, 0);
+    const result = await this.client.execute('SELECT payload FROM runs');
+    return decode<RunRecord>(result.rows).reduce((sum, run) => sum + (run.calls ?? []).filter(call => call.day === day).reduce((total, call) => total + call.inputTokens + call.outputTokens, 0), 0);
+  }
+  async totalCostUsd(): Promise<number> {
+    const result = await this.client.execute('SELECT payload FROM runs');
+    return decode<RunRecord>(result.rows).reduce((sum, run) => sum + (run.calls ?? []).reduce((total, call) => total + call.costUsd, 0), 0);
   }
   close(): void { this.client.close(); }
 }

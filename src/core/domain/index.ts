@@ -8,15 +8,20 @@ export interface Label { id: string; name: string; feature?: string; lessThan?: 
 export interface Playbook {
   id: string; name: string; description: string; goal: string;
   allowedFeatures: string[]; labels: Label[];
+  ai?: { classifyInstructions: string; draftInstructions: string };
   rules: { minLength: number; maxLength: number; requiredText: string; forbiddenPhrases: string[] };
 }
 export interface Limits { maxUsers: number; maxCalls: number; dailyTokens: number }
 export interface Usage { modelCalls: number; llmCalls: number; inputTokens: number; outputTokens: number }
+export interface ModelPlan { model: string; inputTokens: number; outputTokens: number; inputUsdPerMillion: number; outputUsdPerMillion: number }
+export interface ModelCall extends ModelPlan { id: string; day: string; state: 'reserved' | 'reported' | 'unknown'; costUsd: number }
+export interface ModelInfo { mode: 'stub' | 'llm'; fast: string; writer: string }
 export interface RunRecord {
   id: string; status: RunStatus; step: StepId; playbook: Playbook; limits: Limits; usage: Usage;
   createdAt: string; updatedAt: string; finishedAt?: string; ownerPid: number | null;
   attempt: number; workflowRunId: string; userIds: string[] | null; processed: number; skipped: number;
   currentUserId?: string; error?: string; cancelRequested: boolean;
+  model?: ModelInfo; calls?: ModelCall[];
 }
 export interface Draft {
   id: string; runId: string; userId: string; label: string; labelName: string;

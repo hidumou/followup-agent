@@ -1,16 +1,18 @@
 import { AppError, activeStatuses, retryableStatuses } from './domain/index.ts';
-import type { Limits, Playbook, ReviewInput, RunDetail, RunRecord, StepId } from './domain/index.ts';
-import type { DraftFiles, DraftModel, RecordStore, RuntimeClock, UserSource } from './ports/index.ts';
+import type { Limits, ModelPlan, Playbook, ReviewInput, RunDetail, RunRecord, StepId, UserContext } from './domain/index.ts';
+import type { DraftFiles, DraftModel, ModelCallOptions, RecordStore, RuntimeClock, UserSource } from './ports/index.ts';
 import { anonymousContext } from './privacy/index.ts';
-import { assertBudget, checkDraft } from './guards/index.ts';
+import { assertBudget, assertCostBudget, checkDraft } from './guards/index.ts';
 import { SendService } from './send/service.ts';
 
 export interface EngineDependencies {
   store: RecordStore; users: UserSource; model: DraftModel; files: DraftFiles; sender: SendService; clock: RuntimeClock;
+  modelBudget?: { totalUsd: number; timeoutMs: number; day(iso: string): string };
 }
 
 export class FollowupEngine {
   readonly deps: EngineDependencies;
+  private inFlight = new Map<string, AbortController>();
   constructor(deps: EngineDependencies) { this.deps = deps; }
   event(detail: RunDetail, code: string, kind: 'info' | 'success' | 'warning' | 'error' = 'info'): void {
     const { clock } = this.deps;
@@ -24,6 +26,7 @@ export class FollowupEngine {
       id, status: 'queued', step: 'discover', playbook, limits, usage: { modelCalls: 0, llmCalls: 0, inputTokens: 0, outputTokens: 0 },
       createdAt: clock.now(), updatedAt: clock.now(), ownerPid: clock.pid, attempt: 1,
       workflowRunId: `${id}-1`, userIds: null, processed: 0, skipped: 0, cancelRequested: false,
+      model: this.deps.model.info ?? { mode: 'stub', fast: 'stub', writer: 'stub' }, calls: [],
     };
     await store.createRun(run);
     await store.mutate(id, detail => this.event(detail, 'RUN_CREATED'));
@@ -63,15 +66,69 @@ export class FollowupEngine {
       this.event(current, 'USERS_SELECTED', 'success');
     });
   }
-  private async reserveCall(id: string): Promise<void> {
+  private async reserveCall(id: string, plan?: ModelPlan): Promise<string> {
     const { store, clock } = this.deps;
-    const daily = await store.dailyTokens(clock.now().slice(0, 10));
+    const day = this.deps.modelBudget?.day(clock.now()) ?? clock.now().slice(0, 10);
+    const daily = await store.dailyTokens(day);
+    const costUsd = plan ? (plan.inputTokens * plan.inputUsdPerMillion + plan.outputTokens * plan.outputUsdPerMillion) / 1e6 : 0;
+    if (plan) assertCostBudget(await store.totalCostUsd(), costUsd, this.deps.modelBudget?.totalUsd ?? 0);
+    const callId = clock.id();
     await store.mutate(id, detail => {
       if (detail.run.cancelRequested) throw new AppError('RUN_CANCELLED', 409);
-      assertBudget(detail.run.limits, detail.run.usage, detail.run.userIds?.length ?? 0, daily);
+      if (detail.run.status !== 'running') throw new AppError('RUN_NOT_RUNNING', 409);
+      assertBudget(detail.run.limits, detail.run.usage, detail.run.userIds?.length ?? 0, daily, plan ? plan.inputTokens + plan.outputTokens : 0);
       detail.run.usage.modelCalls += 1;
-      this.event(detail, 'STUB_CALL');
+      if (plan) {
+        detail.run.usage.llmCalls += 1;
+        (detail.run.calls ??= []).push({ ...plan, id: callId, day, state: 'reserved', costUsd });
+      }
+      this.event(detail, plan ? 'LLM_CALL_STARTED' : 'STUB_CALL');
     });
+    return callId;
+  }
+  private async invoke<T>(id: string, task: 'classify' | 'draft', context: UserContext, playbook: Playbook, work: (options: ModelCallOptions) => Promise<T>, label?: string): Promise<T> {
+    const { model, store } = this.deps;
+    const plan = model.plan?.(task, context, playbook, label);
+    if (model.mode === 'llm' && !plan) throw new AppError('MODEL_PLAN_REQUIRED');
+    const callId = await this.reserveCall(id, plan);
+    const controller = new AbortController();
+    this.inFlight.set(id, controller);
+    const timeout = setTimeout(() => controller.abort(new AppError('MODEL_TIMEOUT')), this.deps.modelBudget?.timeoutMs ?? 45000);
+    // Observe cancellation requested by a different local process as well.
+    const poll = setInterval(() => {
+      void store.getRun(id).then(detail => {
+        if (detail.run.cancelRequested) controller.abort(new AppError('RUN_CANCELLED'));
+      }).catch(() => controller.abort(new AppError('STORAGE_READ_FAILED')));
+    }, 250);
+    try {
+      const result = await work({ signal: controller.signal, reportUsage: async usage => {
+        if (!plan || ![usage.inputTokens, usage.outputTokens].every(value => Number.isSafeInteger(value) && value >= 0)) throw new AppError('MODEL_USAGE_MISSING');
+        await store.mutate(id, detail => {
+          const call = detail.run.calls!.find(item => item.id === callId)!;
+          if (call.state !== 'reserved') throw new AppError('MODEL_USAGE_DUPLICATE');
+          call.inputTokens = usage.inputTokens;
+          call.outputTokens = usage.outputTokens;
+          call.costUsd = (usage.inputTokens * plan.inputUsdPerMillion + usage.outputTokens * plan.outputUsdPerMillion) / 1e6;
+          call.state = 'reported';
+          detail.run.usage.inputTokens += usage.inputTokens;
+          detail.run.usage.outputTokens += usage.outputTokens;
+          this.event(detail, 'LLM_USAGE_RECORDED', 'success');
+        });
+        if (usage.inputTokens > plan.inputTokens || usage.outputTokens > plan.outputTokens) throw new AppError('MODEL_USAGE_EXCEEDED');
+      } });
+      if (controller.signal.aborted) throw controller.signal.reason;
+      if (plan && (await store.getRun(id)).run.calls!.find(call => call.id === callId)!.state !== 'reported') throw new AppError('MODEL_USAGE_MISSING');
+      return result;
+    } catch (error) {
+      if (controller.signal.aborted) throw controller.signal.reason;
+      throw error;
+    } finally {
+      clearTimeout(timeout); clearInterval(poll); this.inFlight.delete(id);
+      if (plan) await store.mutate(id, detail => {
+        const call = detail.run.calls!.find(item => item.id === callId)!;
+        if (call.state === 'reserved') { call.state = 'unknown'; this.event(detail, 'LLM_USAGE_UNKNOWN', 'warning'); }
+      });
+    }
   }
   async generate(id: string): Promise<void> {
     const { store, users, model, files, clock } = this.deps;
@@ -82,13 +139,11 @@ export class FollowupEngine {
       if (existing) { await files.saveDraft(existing); continue; }
       const context = anonymousContext(await users.getContext(userId), run.playbook.allowedFeatures);
       await this.checkpoint(id, 'classify', userId);
-      await this.reserveCall(id);
-      const labelId = await model.classify(context, run.playbook);
+      const labelId = await this.invoke(id, 'classify', context, run.playbook, options => model.classify(context, run.playbook, options));
       const label = run.playbook.labels.find(item => item.id === labelId);
       if (!label) throw new AppError('INVALID_LABEL');
       await this.checkpoint(id, 'draft', userId);
-      await this.reserveCall(id);
-      const output = await model.draft(context, labelId, run.playbook);
+      const output = await this.invoke(id, 'draft', context, run.playbook, options => model.draft(context, labelId, run.playbook, options), labelId);
       await this.checkpoint(id, 'guard', userId);
       if (checkDraft(output, run.playbook).length) throw new AppError('GUARD_REJECTED');
       const draft = {
@@ -173,7 +228,7 @@ export class FollowupEngine {
     });
   }
   async cancel(id: string): Promise<RunDetail> {
-    return this.deps.store.mutate(id, detail => {
+    const result = await this.deps.store.mutate(id, detail => {
       if (!activeStatuses.includes(detail.run.status)) throw new AppError('RUN_NOT_ACTIVE', 409);
       detail.run.cancelRequested = true;
       if (detail.run.status !== 'running') {
@@ -183,9 +238,14 @@ export class FollowupEngine {
       }
       this.event(detail, 'CANCEL_REQUESTED', 'warning');
     });
+    this.inFlight.get(id)?.abort(new AppError('RUN_CANCELLED'));
+    return result;
   }
   async retry(id: string, limits: Limits): Promise<RunDetail> {
     const previous = await this.deps.store.getRun(id);
+    const modelInfo = this.deps.model.info ?? { mode: 'stub', fast: 'stub', writer: 'stub' };
+    const previousModel = previous.run.model ?? { mode: 'stub', fast: 'stub', writer: 'stub' };
+    if (previousModel.mode !== modelInfo.mode || previousModel.fast !== modelInfo.fast || previousModel.writer !== modelInfo.writer) throw new AppError('MODEL_CHANGED', 409);
     const reserved = await this.deps.store.reservedUsers(previous.run.playbook.id, id);
     if (previous.run.userIds?.some(userId => reserved.has(userId))) throw new AppError('RETRY_USER_CONFLICT', 409);
     return this.deps.store.mutate(id, detail => {

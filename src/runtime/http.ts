@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { z } from 'zod';
 import { AppError } from '../core/domain/index.ts';
 import type { AppContainer } from './container.ts';
+import { runnerStatus } from '../adapters/launchd/scheduler.ts';
 
 type Middleware = (request: IncomingMessage, response: ServerResponse, next: () => void) => void;
 const startSchema = z.object({ playbook: z.string(), maxUsers: z.number().int().positive() }).strict();
@@ -41,6 +42,11 @@ export function createHttpServer(app: AppContainer, assets: () => Middleware | u
       }
       if (method === 'GET' && path === '/api/config') return respond(200, { playbooks: app.playbooks, defaultPlaybook: app.config.playbook, limits: app.config.limits, mode: 'dry-run', model: app.engine.deps.model.info ?? { mode: 'stub', fast: 'stub', writer: 'stub' }, budgetUsd: app.config.model.budgetUsd });
       if (method === 'GET' && path === '/api/runs') return respond(200, { runs: await app.store.listRuns() });
+      if (method === 'GET' && path === '/api/schedule') return respond(200, { ...await app.store.getSchedule(), runner: await runnerStatus(app.config) });
+      if (method === 'POST' && path === '/api/schedule') {
+        const input = z.object({ enabled: z.boolean(), version: z.number().int().positive() }).strict().parse(await body(request));
+        return respond(200, { schedule: await app.store.setScheduleEnabled(input.enabled, input.version) });
+      }
       if (method === 'POST' && path === '/api/runs') {
         const input = startSchema.parse(await body(request));
         return respond(202, { run: await app.start(input.playbook, input.maxUsers) });

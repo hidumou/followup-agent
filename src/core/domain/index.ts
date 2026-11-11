@@ -16,12 +16,14 @@ export interface Usage { modelCalls: number; llmCalls: number; inputTokens: numb
 export interface ModelPlan { model: string; inputTokens: number; outputTokens: number; inputUsdPerMillion: number; outputUsdPerMillion: number }
 export interface ModelCall extends ModelPlan { id: string; day: string; state: 'reserved' | 'reported' | 'unknown'; costUsd: number }
 export interface ModelInfo { mode: 'stub' | 'llm'; fast: string; writer: string }
+export type RunTrigger = { kind: 'manual' } | { kind: 'scheduled'; scheduleId: string; plannedAt: string };
 export interface RunRecord {
   id: string; status: RunStatus; step: StepId; playbook: Playbook; limits: Limits; usage: Usage;
   createdAt: string; updatedAt: string; finishedAt?: string; ownerPid: number | null;
   attempt: number; workflowRunId: string; userIds: string[] | null; processed: number; skipped: number;
   currentUserId?: string; error?: string; cancelRequested: boolean;
   model?: ModelInfo; calls?: ModelCall[];
+  trigger?: RunTrigger;
 }
 export interface Draft {
   id: string; runId: string; userId: string; label: string; labelName: string;

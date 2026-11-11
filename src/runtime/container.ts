@@ -71,6 +71,11 @@ export async function createContainer(config: AppConfig = readEnv()) {
   }
   return {
     config, store, engine, mastra, playbooks,
+    async tickSchedule(at?: string) {
+      const run = await store.tickSchedule(plannedAt => engine.prepare(getPlaybook(playbooks, config.playbook), config.limits, { kind: 'scheduled', scheduleId: 'weekday-followup', plannedAt }), at);
+      if (run) launch(run);
+      return run;
+    },
     async start(playbookId = config.playbook, maxUsers = config.limits.maxUsers) {
       if (!Number.isInteger(maxUsers) || maxUsers < 1 || maxUsers > config.limits.maxUsers) throw new AppError('USER_LIMIT');
       const run = await engine.create(getPlaybook(playbooks, playbookId), { ...config.limits, maxUsers });

@@ -1,5 +1,5 @@
 import { AppError, activeStatuses, retryableStatuses } from './domain/index.ts';
-import type { Limits, ModelPlan, Playbook, ReviewInput, RunDetail, RunRecord, StepId, UserContext } from './domain/index.ts';
+import type { Limits, ModelPlan, Playbook, ReviewInput, RunDetail, RunRecord, RunTrigger, StepId, UserContext } from './domain/index.ts';
 import type { DraftFiles, DraftModel, ModelCallOptions, RecordStore, RuntimeClock, UserSource } from './ports/index.ts';
 import { anonymousContext } from './privacy/index.ts';
 import { assertBudget, assertCostBudget, checkDraft } from './guards/index.ts';
@@ -19,17 +19,21 @@ export class FollowupEngine {
     detail.run.updatedAt = clock.now();
     detail.events.push({ id: clock.id(), at: clock.now(), code, kind, step: detail.run.step, userId: detail.run.currentUserId });
   }
-  async create(playbook: Playbook, limits: Limits): Promise<RunRecord> {
-    const { clock, store } = this.deps;
+  prepare(playbook: Playbook, limits: Limits, trigger: RunTrigger = { kind: 'manual' }): RunRecord {
+    const { clock } = this.deps;
     const id = clock.id();
     const run: RunRecord = {
       id, status: 'queued', step: 'discover', playbook, limits, usage: { modelCalls: 0, llmCalls: 0, inputTokens: 0, outputTokens: 0 },
       createdAt: clock.now(), updatedAt: clock.now(), ownerPid: clock.pid, attempt: 1,
       workflowRunId: `${id}-1`, userIds: null, processed: 0, skipped: 0, cancelRequested: false,
-      model: this.deps.model.info ?? { mode: 'stub', fast: 'stub', writer: 'stub' }, calls: [],
+      model: this.deps.model.info ?? { mode: 'stub', fast: 'stub', writer: 'stub' }, calls: [], trigger,
     };
-    await store.createRun(run);
-    await store.mutate(id, detail => this.event(detail, 'RUN_CREATED'));
+    return run;
+  }
+  async create(playbook: Playbook, limits: Limits): Promise<RunRecord> {
+    const run = this.prepare(playbook, limits);
+    await this.deps.store.createRun(run);
+    await this.deps.store.mutate(run.id, detail => this.event(detail, 'RUN_CREATED'));
     return run;
   }
   async checkpoint(id: string, step?: StepId, userId?: string): Promise<RunDetail> {

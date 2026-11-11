@@ -60,3 +60,17 @@ it('rejects malformed, oversized, cross-origin and DNS-rebinding requests', asyn
   expect(invalid.status).toBe(404);
   expect(await invalid.json()).toEqual({ error: 'PLAYBOOK_NOT_FOUND' });
 });
+
+it('exposes persisted schedule controls without accepting arbitrary execution or time overrides', async () => {
+  const initial = await (await fetch(base + '/api/schedule')).json();
+  expect(initial.schedule.enabled).toBe(false);
+  expect(initial.schedule.timezone).toBe('Asia/Taipei');
+  expect(initial.runner).toHaveProperty('loaded');
+  expect((await post('/api/schedule', { enabled: true, version: 1 })).status).toBe(200);
+  expect((await (await fetch(base + '/api/schedule')).json()).schedule.nextRunAt).toBeTruthy();
+  expect((await post('/api/schedule', { enabled: false, version: 1 })).status).toBe(409);
+  expect((await post('/api/schedule', { enabled: true, version: 2, at: '2026-11-10T01:00:00.000Z' })).status).toBe(400);
+  expect((await post('/api/schedule', { enabled: false, version: 2 }, { origin: 'https://untrusted.invalid' })).status).toBe(403);
+  expect((await post('/api/schedule', { enabled: false, version: 2 })).status).toBe(200);
+  expect(await app.store.listRuns()).toHaveLength(0);
+});
